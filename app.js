@@ -11,11 +11,18 @@ const PROFILES_STORE = IS_PREVIEW ? 'yasny-den-preview-profiles-v1' : 'yasny-den
 // Примерные по длительности планы. 20 минут — режим по умолчанию.
 // Ни длительность, ни наша конкретная программа не прошли клиническую валидацию.
 function buildPlan(minutes, date = new Date()) {
+ const configured=window.YASNY_CONTENT?.PLAN_ORDER;
+ const order=Array.isArray(configured)?configured:[];
+ const prioritize=items=>items.map((type,index)=>({type,index})).sort((x,y)=>{
+  const ix=order.indexOf(x.type),iy=order.indexOf(y.type);
+  const px=ix<0?1000+x.index:ix,py=iy<0?1000+y.index:iy;
+  return px-py||x.index-y.index;
+ }).map(row=>row.type);
  const day = Math.floor(new Date(date.getFullYear(),date.getMonth(),date.getDate()).getTime()/86400000);
  const alt = (items, step=0) => items[(day+step)%items.length];
- if(minutes === 15) return [alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']),alt(['logic','association']), 'neuro', 'calm'];
- if(minutes === 30) return [alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']), 'sequence',alt(['logic','association']), 'wordfluency', alt(['everyday','planning']),alt(['picturefind','picturepairs','changes']), 'neuro', 'calm'];
- return [alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']), 'sequence',alt(['logic','association']),alt(['wordfluency','planning','everyday'],1), 'neuro', 'calm'];
+ if(minutes === 15) return prioritize([alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']),alt(['logic','association']), 'neuro', 'calm']);
+ if(minutes === 30) return prioritize([alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']), 'sequence',alt(['logic','association']), 'wordfluency', alt(['everyday','planning']),alt(['picturefind','picturepairs','changes']), 'neuro', 'calm']);
+ return prioritize([alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']), 'sequence',alt(['logic','association']),alt(['wordfluency','planning','everyday'],1), 'neuro', 'calm']);
 }
 const EXERCISES = {
   picturepairs: {name:'Найди пару',icon:'▧',label:'Зрительная память',time:'3–5 мин',desc:'Открывайте карточки с фотографиями и ищите одинаковые пары.',source:'review'},
@@ -104,13 +111,14 @@ let lastResult = null;
 let breathingTimer = null;
 let installPrompt = null;
 
-function defaultState(){return {mode:20,font:0,history:[],activityLog:[],session:null,dailyDraft:null,soloDraft:null}}
+function defaultState(){return {mode:20,font:0,history:[],activityLog:[],rotationLog:[],session:null,dailyDraft:null,soloDraft:null}}
 function normalizeState(data){
  const d=data&&typeof data==='object'?data:{};
  return {mode:[15,20,30].includes(Number(d.mode))?Number(d.mode):20,
   font:[0,1,2].includes(d.font)?d.font:0,
   history:Array.isArray(d.history)?d.history.filter(e=>e&&typeof e.date==='string'&&typeof e.total==='number').slice(-365):[],
-  activityLog:Array.isArray(d.activityLog)?d.activityLog.filter(e=>e&&typeof e.date==='string'&&Object.prototype.hasOwnProperty.call(EXERCISES,e.type)).slice(-600):[],
+  activityLog:Array.isArray(d.activityLog)?d.activityLog.filter(e=>e&&typeof e.date==='string'&&Object.prototype.hasOwnProperty.call(EXERCISES,e.type)).slice(-1200):[],
+  rotationLog:Array.isArray(d.rotationLog)?d.rotationLog.filter(e=>e&&typeof e.date==='string'&&typeof e.key==='string'&&typeof e.type==='string').slice(-1500):[],
   session:d.session&&Array.isArray(d.session.plan)&&Number.isInteger(d.session.position)?d.session:null,
   dailyDraft:validDraft(d.dailyDraft)?d.dailyDraft:null,
   soloDraft:validDraft(d.soloDraft)?d.soloDraft:null};
@@ -207,6 +215,54 @@ function shuffle(a){const arr=[...a];for(let i=arr.length-1;i>0;i--){const j=Mat
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function dateKey(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
 function dayLabel(d){return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}
+// История именно ПОКАЗАННЫХ материалов каждого участника. Не содержит фотографий,
+// имён пользователей или полного текста заданий — только короткий ключ варианта.
+function utcDay(key){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(key||'');return m?Date.UTC(+m[1],+m[2]-1,+m[3])/86400000:-1}
+function rotationKey(data){let s=String(data);let hash=2166136261;for(let i=0;i<s.length;i++){hash^=s.charCodeAt(i);hash=Math.imul(hash,16777619)}return (hash>>>0).toString(36)}
+function chooseFresh(type,items,keyFn){
+ if(!items.length)return null;
+ const current=utcDay(dateKey());const past=(state.rotationLog||[]).filter(e=>e.type===type&&current-utcDay(e.date)>=0&&current-utcDay(e.date)<14);
+ const last=new Map(),week=new Set(),today=new Set();for(const e of past){const when=utcDay(e.date);last.set(e.key,Math.max(last.get(e.key)||-1,when));if(current-when<7)week.add(e.key);if(current===when)today.add(e.key)}
+ const options=items.map(item=>({item,key:rotationKey(keyFn(item))}));
+ const avoidSameRound=options.filter(o=>!game?.used?.includes(o.key));
+ const pool=avoidSameRound.length?avoidSameRound:options;
+ // Предпочтение: не показанный за 14 дней -> за 7 дней -> сегодня -> самый давний.
+ const available14=pool.filter(o=>!last.has(o.key));
+ const available7=pool.filter(o=>!week.has(o.key));
+ const availableToday=pool.filter(o=>!today.has(o.key));
+ const eligible=available14.length?available14:available7.length?available7:availableToday.length?availableToday:pool;
+ const bestAge=Math.min(...eligible.map(o=>last.has(o.key)?last.get(o.key):-1));
+ const leastRecent=eligible.filter(o=>(last.has(o.key)?last.get(o.key):-1)===bestAge);
+ const selected=leastRecent[Math.floor(Math.random()*leastRecent.length)];
+ if(game){game.used=game.used||[];game.used.push(selected.key)}
+ state.rotationLog=state.rotationLog||[];
+ state.rotationLog.push({date:dateKey(),type,key:selected.key});
+ state.rotationLog=state.rotationLog.filter(e=>current-utcDay(e.date)<21).slice(-1500);
+ return selected.item;
+}
+function shuffledCandidates(pools,count,variants=12){
+ const results=[];for(let p=0;p<pools.length;p++)for(let n=0;n<variants;n++){const words=shuffle(pools[p]).slice(0,Math.min(count,pools[p].length));results.push({pool:p,words})}return results;
+}
+function weekStart(date){const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());d.setDate(d.getDate()-((d.getDay()+6)%7));return d}
+function weekSummary(offset){
+ const monday=weekStart(new Date());monday.setDate(monday.getDate()+7*offset);
+ const sunday=new Date(monday);sunday.setDate(sunday.getDate()+6);
+ const start=dateKey(monday),end=dateKey(sunday),logs=state.activityLog.filter(e=>e.date>=start&&e.date<=end),days=new Set(logs.map(e=>e.date));
+ const complete=state.history.filter(e=>e.date>=start&&e.date<=end).reduce((sum,e)=>sum+e.total,0);
+ const types=new Set(logs.map(e=>e.type));const counts={};for(const e of logs)counts[e.type]=(counts[e.type]||0)+1;
+ const most=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([type])=>EXERCISES[type]?.name||'Упражнение');
+ const opportunities=Object.keys(EXERCISES).filter(t=>!['calm','neuro'].includes(t)&&!types.has(t));
+ const suggestion=opportunities.length?`На следующей неделе можно попробовать: ${EXERCISES[opportunities[0]].name}.`:'На следующей неделе можно продолжить чередовать знакомые упражнения.';
+ return {start,end,days:days.size,exercises:logs.length,complete,types:types.size,most,suggestion};
+}
+function renderWeekReport(w,heading){
+ const dates=`${w.start.slice(8,10)}.${w.start.slice(5,7)} – ${w.end.slice(8,10)}.${w.end.slice(5,7)}`;
+ return `<section class="card section weekly-report"><div class="row between"><h2>${heading}</h2><span class="chip">${dates}</span></div>
+ <div class="weekly-stats"><div><strong>${w.days}</strong><span>дней с упражнениями</span></div><div><strong>${w.exercises}</strong><span>упражнений выполнено</span></div><div><strong>${w.types}</strong><span>видов практик</span></div></div>
+ <p>${w.exercises?`Больше всего вы занимались: ${escapeText(w.most.join(' и '))}.`:'Пока нет завершённых упражнений за этот период. Можно начать с небольшого занятия.'}</p>
+ <p class="muted small">${escapeText(w.suggestion)}</p><p class="small muted">Это история занятий, а не медицинская оценка памяти или мышления. Пропуски не считаются неудачами.</p></section>`;
+}
+
 function focusMain(){const h=main.querySelector('h1');if(h){h.tabIndex=-1;h.focus({preventScroll:true})}}
 function applyFont(){document.documentElement.style.setProperty('--font-size',([20,22,24][state.font]||20)+'px')}
 function setView(name){stopBreathing();clearPhotoStudyTimer();view=name;game=null;render();window.scrollTo({top:0,behavior:'instant'});focusMain()}
@@ -240,6 +296,7 @@ function renderHome(){
  <section class="section"><div class="section-header"><h2>Что вы потренируете</h2>${btn('Все упражнения','library','secondary small-btn')}</div>
  <div class="grid">${['words','focus','association','planning'].map(k=>{const e=EXERCISES[k];return `<div class="card feature-card"><span class="feature-icon" aria-hidden="true">${e.icon}</span><h3>${e.label}</h3><p>${e.desc}</p></div>`}).join('')}</div>
  </section>
+ <section class="section card soft"><h2>Ваш итог недели</h2><p>Небольшой отчёт о занятиях, которые вы уже выполнили. Он не сравнивает вас с другими.</p>${btn('Посмотреть итог недели','progress','secondary')}</section>
  <section class="section card soft"><h2>Полезное для каждого дня</h2><p>Сон, прогулки, общение и новые впечатления тоже важны. Мы собрали небольшие статьи с простыми идеями, которые удобно применять в жизни.</p>${btn('Читать полезные статьи','articles','secondary')}</section>
  <div class="banner"><strong>Забота о себе в удобном темпе.</strong> Здесь можно тренировать память, внимание и мышление, выбирать интересные упражнения и делать перерывы, когда хочется.</div>
  <p class="footnote">Данные занятий сохраняются только в браузере на этом устройстве. <button class="btn ghost small-btn" data-action="nav" data-target="settings">Настройки и сведения</button></p>`);
@@ -270,6 +327,7 @@ function renderProgress(){
  setMain(`<span class="eyebrow">Ваш ритм важнее рекордов</span><h1>Мои занятия</h1><p class="lead">Посмотрите, сколько времени вы уже уделили себе. Здесь важна регулярность, а не рекорды.</p>
  <div class="grid section"><section class="card"><div class="muted small">Дней с занятиями</div><div class="count-big">${state.history.length}</div></section><section class="card"><div class="muted small">Завершённых занятий</div><div class="count-big">${total}</div></section><section class="card"><div class="muted small">Выполнено упражнений</div><div class="count-big">${state.activityLog.length}</div></section></div>
  <section class="card section"><h2>Последние 7 дней</h2><div class="days" aria-label="Дни с завершёнными занятиями">${days.map(x=>`<div class="day ${x.done?'completed':''}" aria-label="${dayLabel(x.d)}: ${x.done?'есть занятие':'нет занятия'}"><span>${x.d.toLocaleDateString('ru-RU',{weekday:'short'})}</span><strong>${x.done?'✓':'–'}</strong></div>`).join('')}</div><p class="small muted topspace">На этой неделе занятия были в ${week} из 7 дней. Пропускать дни — нормально.</p></section>
+ ${renderWeekReport(weekSummary(0),'Итог этой недели')}${renderWeekReport(weekSummary(-1),'Итог прошлой недели')}
  <section class="card section"><h2>Последние упражнения</h2>${state.activityLog.length?`<ul class="source-list">${state.activityLog.slice(-8).reverse().map(e=>`<li><strong>${escapeText(EXERCISES[e.type]?.name||'Упражнение')}</strong> — ${escapeText(e.date.split('-').reverse().join('.'))}${e.daily?' · в комплексе':' · отдельно'}</li>`).join('')}</ul>`:'<p class="muted">После завершения игр здесь появятся ваши занятия.</p>'}</section><section class="card section"><h2>Участники</h2><p>У каждого человека своя история занятий на этом устройстве.</p>${btn('Выбрать участника','profiles','secondary')}</section><section class="card section"><h2>Ваши маленькие шаги</h2><p>Здесь сохраняется история занятий, чтобы было приятно замечать свою регулярность. Оценивайте свой прогресс по ощущениям и интересу к заданиям, а не только по количеству выполненного.</p>${btn('Новое занятие','tohome')}</section>
  <p class="footnote">Если очистить данные браузера или открыть приложение на другом устройстве, история не перенесётся автоматически.</p>`);
 }
@@ -286,30 +344,46 @@ function generateRound(){clearPhotoStudyTimer();const g=game;g.selected=[];g.fee
  case 'picturepairs': {
   const usable=PICTURE_PAIR_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=2);
   if(!usable.length){g.record={setIndex:-1,tiles:[],opened:[],matched:[],attempts:0};g.phase='answer';break;}
-  const chosen=pick(usable);const count=Math.min(Math.max(2,Math.min(5,Number(chosen.s.pairs)||3)),chosen.s.images.filter(x=>x.src).length);
-  const indices=shuffle(chosen.s.images.map((_,i)=>i).filter(i=>chosen.s.images[i].src)).slice(0,count);
+  const allCandidates=[];
+  for(const row of usable){const valid=row.s.images.map((_,i)=>i).filter(i=>row.s.images[i].src),count=Math.min(Math.max(2,Math.min(5,Number(row.s.pairs)||3)),valid.length);
+   for(let v=0;v<36;v++){const indices=shuffle(valid).slice(0,count);allCandidates.push({chosen:row,indices,signature:`${row.s.id||row.i}:${indices.map(i=>row.s.images[i].id||i).sort().join(',')}`})}}
+  // Чтобы завтра показывать другие ФОТО, а не только другую раскладку,
+  // отдаём приоритет комбинациям из изображений, которых ещё не было за неделю.
+  const now=utcDay(dateKey()),seenImages=new Set((state.rotationLog||[]).filter(e=>e.type==='picturepairs-photo'&&now-utcDay(e.date)>=0&&now-utcDay(e.date)<7).map(e=>e.key));
+  const freshness=v=>v.indices.filter(i=>!seenImages.has(rotationKey(v.chosen.s.images[i].id||`${v.chosen.i}:${i}`))).length;
+  const mostFresh=Math.max(...allCandidates.map(freshness));
+  const candidates=allCandidates.filter(v=>freshness(v)===mostFresh);
+  const fresh=chooseFresh('picturepairs',candidates,v=>v.signature);
+  const chosen=fresh.chosen,indices=fresh.indices;
+  for(const i of indices){state.rotationLog.push({date:dateKey(),type:'picturepairs-photo',key:rotationKey(chosen.s.images[i].id||`${chosen.i}:${i}`)})}
+  state.rotationLog=state.rotationLog.slice(-1500);
   const tiles=shuffle(indices.flatMap(n=>[{image:n,key:n},{image:n,key:n}])).map((t,i)=>({...t,slot:i}));
   g.record={setIndex:chosen.i,tiles,opened:[],matched:[],attempts:0};g.phase='answer';break;
  }
  case 'picturefind': {
   const usable=PICTURE_MEMORY_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=3);
   if(!usable.length){g.record={setIndex:-1,options:[],target:-1};g.phase='answer';break;}
-  const chosen=pick(usable),valid=chosen.s.images.map((_,i)=>i).filter(i=>chosen.s.images[i].src);
-  const target=pick(valid),options=shuffle([target,...shuffle(valid.filter(i=>i!==target)).slice(0,Math.min(Math.max(2,Math.min(5,(Number(chosen.s.findOptions)||5)-1)),valid.length-1))]);
+  const allCandidates=[];
+  for(const row of usable){const valid=row.s.images.map((_,i)=>i).filter(i=>row.s.images[i].src);for(const candidate of valid){
+   const maxOthers=Math.min(Math.max(2,Math.min(5,(Number(row.s.findOptions)||5)-1)),valid.length-1);
+   for(let v=0;v<3;v++){const options=shuffle([candidate,...shuffle(valid.filter(i=>i!==candidate)).slice(0,maxOthers)]);
+    allCandidates.push({chosen:row,target:candidate,options,signature:`${row.s.id||row.i}:${row.s.images[candidate].id||candidate}`})}}}
+  const fresh=chooseFresh('picturefind',allCandidates,v=>v.signature);
+  const chosen=fresh.chosen,target=fresh.target,options=fresh.options;
   const sec=Number(chosen.s.studySeconds);
   const studySeconds=[0,10,15,20,30].includes(sec)?sec:15;
   g.record={setIndex:chosen.i,target,options,studySeconds};g.phase='show';break;
  }
- case 'words': {const pool=pick(WORD_POOLS),n=4+(state.font===2?0:Math.min(2,g.round));const words=shuffle(pool).slice(0,n);g.record={words,options:shuffle([...words,...shuffle(pool.filter(w=>!words.includes(w))).slice(0,Math.min(6,12-n))])};g.phase='show';break}
- case 'focus': {const pool=pick(FOCUS_POOLS),n=3+(g.round%3),target=pool[0];const cells=shuffle([...Array(n).fill(target),...Array.from({length:16-n},()=>pick(pool.slice(1)))]);g.record={cells,target,count:n};g.phase='answer';break}
- case 'sequence': {const pool=pick(SEQ_POOLS),n=3+(g.round%2);g.record={words:shuffle(pool).slice(0,n)};g.phase='show';break}
- case 'logic': {const q=LOGIC[(Math.floor(Date.now()/86400000)+g.round*3+(g.daily?state.session?.position||0:0))%LOGIC.length];g.record=q;g.phase='answer';break}
- case 'everyday': {const q=EVERYDAY[(Math.floor(Date.now()/86400000)+g.round*2+(g.daily?state.session?.position||0:0))%EVERYDAY.length];g.record=q;g.phase='answer';break}
- case 'changes': {const pool=pick(WORD_POOLS);const words=shuffle(pool).slice(0,6);const missing=pick(words);const options=shuffle([missing,...shuffle(pool.filter(w=>!words.includes(w))).slice(0,3)]);g.record={words,missing,options};g.phase='show';break}
- case 'symbols': {const target=pick(SYMBOL_TYPES);const others=SYMBOL_TYPES.filter(x=>x!==target),n=3+(g.round%3);g.record={target,count:n,cells:shuffle([...Array(n).fill(target),...Array.from({length:18-n},()=>pick(others))])};g.phase='answer';break}
- case 'association': {const avail=ASSOCIATIONS.filter(x=>!g.used.includes(x.answer));const q=pick(avail.length?avail:ASSOCIATIONS);g.used.push(q.answer);g.record={...q,choices:shuffle(q.choices)};g.phase='answer';break}
- case 'wordfluency': {const avail=SPEECH_PROMPTS.filter(x=>!g.used.includes(x.title));const q=pick(avail.length?avail:SPEECH_PROMPTS);g.used.push(q.title);g.record={...q};g.phase='answer';break}
- case 'planning': {const avail=PLANNING_TASKS.filter(x=>!g.used.includes(x.q));const q=pick(avail.length?avail:PLANNING_TASKS);g.used.push(q.q);g.record={...q,words:q.steps};g.phase='answer';break}
+ case 'words': {const n=4+(state.font===2?0:Math.min(2,g.round));const rec=chooseFresh('words',shuffledCandidates(WORD_POOLS,n,36),v=>v.pool+':'+[...v.words].sort().join('|'));const pool=WORD_POOLS[rec.pool],words=rec.words;g.record={words,options:shuffle([...words,...shuffle(pool.filter(w=>!words.includes(w))).slice(0,Math.min(6,12-n))])};g.phase='show';break}
+ case 'focus': {const n=3+(g.round%3),rec=chooseFresh('focus',FOCUS_POOLS.map((pool,i)=>({pool,i})),v=>v.i);const pool=rec.pool,target=pool[0];const cells=shuffle([...Array(n).fill(target),...Array.from({length:16-n},()=>pick(pool.slice(1)))]);g.record={cells,target,count:n};g.phase='answer';break}
+ case 'sequence': {const n=3+(g.round%2),rec=chooseFresh('sequence',shuffledCandidates(SEQ_POOLS,n,30),v=>v.pool+':'+v.words.join('|'));g.record={words:rec.words};g.phase='show';break}
+ case 'logic': {const q=chooseFresh('logic',LOGIC.map((record,i)=>({record,i})),x=>x.record.id||x.i).record;g.record=q;g.phase='answer';break}
+ case 'everyday': {const q=chooseFresh('everyday',EVERYDAY.map((record,i)=>({record,i})),x=>x.record.id||x.i).record;g.record=q;g.phase='answer';break}
+ case 'changes': {const rows=shuffledCandidates(WORD_POOLS,6,36).map(r=>({...r,missing:pick(r.words)}));const rec=chooseFresh('changes',rows,r=>r.pool+':'+[...r.words].sort().join('|')+':'+r.missing),pool=WORD_POOLS[rec.pool],words=rec.words,missing=rec.missing;const options=shuffle([missing,...shuffle(pool.filter(w=>!words.includes(w))).slice(0,3)]);g.record={words,missing,options};g.phase='show';break}
+ case 'symbols': {const target=chooseFresh('symbols',SYMBOL_TYPES,x=>x),others=SYMBOL_TYPES.filter(x=>x!==target),n=3+(g.round%3);g.record={target,count:n,cells:shuffle([...Array(n).fill(target),...Array.from({length:18-n},()=>pick(others))])};g.phase='answer';break}
+ case 'association': {const q=chooseFresh('association',ASSOCIATIONS,x.answer);g.record={...q,choices:shuffle(q.choices)};g.phase='answer';break}
+ case 'wordfluency': {const q=chooseFresh('wordfluency',SPEECH_PROMPTS,x.title);g.record={...q};g.phase='answer';break}
+ case 'planning': {const q=chooseFresh('planning',PLANNING_TASKS,x.q);g.record={...q,words:q.steps};g.phase='answer';break}
  case 'calm': {g.phase='ready';g.record={};break}
  case 'neuro': {g.phase='ready';g.record={};break}
  }
@@ -418,7 +492,7 @@ function startBreathing(){if(!game||game.type!=='calm'||game.phase!=='ready')ret
 function stopBreathing(){if(breathingTimer!==null){clearInterval(breathingTimer);breathingTimer=null}}
 function finishBreath(){stopBreathing();if(game&&game.type==='calm'){game.phase='done';renderGame()}}
 function askRestart(){if(window.confirm('Начать новое занятие? Текущий незавершённый план будет заменён.'))startSession(true)}
-function clearData(){if(window.confirm('Удалить всю историю и незавершённое занятие на этом устройстве?')){state.history=[];state.activityLog=[];state.session=null;state.dailyDraft=null;state.soloDraft=null;save();setView('settings')}}
+function clearData(){if(window.confirm('Удалить всю историю и незавершённое занятие на этом устройстве?')){state.history=[];state.activityLog=[];state.rotationLog=[];state.session=null;state.dailyDraft=null;state.soloDraft=null;save();setView('settings')}}
 function handleClick(e){const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const action=el.dataset.action;
  switch(action){
  case'profiles':setView('profiles');break;

@@ -17,6 +17,10 @@
 .image-gallery-min{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}.image-gallery-min img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:2px solid #eadfdb}
 #edit-hint{margin:12px 0 18px;padding:12px;background:#f8f0ec;border-radius:12px}#entry-select{min-width:260px}.photo-select{width:100%;padding:12px;border:1.5px solid #c8c4bf;background:white;border-radius:12px;color:#29343b}.editor-game-explain{border:1px solid #d8d4d1;background:#f7f2ee;border-radius:14px;padding:15px;margin-bottom:20px}.editor-game-explain strong{font-size:1.1rem}.editor-game-explain p{margin-top:5px;color:#53616a}
 @media(max-width:500px){.picture-row{grid-template-columns:84px 1fr}.picture-row img{width:84px;height:84px}.image-gallery-min{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.order-item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #d9d2ce;border-radius:12px;padding:10px 12px;margin:8px 0}
+.order-num{min-width:27px;font-weight:750;color:#765459;text-align:center}.order-name{flex:1;font-weight:700;line-height:1.4}.order-actions{display:flex;gap:6px}.order-actions button{width:46px;height:46px;border:1px solid #c9b9b9;border-radius:11px;background:#f9f3ef;font-size:1.35rem;font-weight:800;color:#5e434b}.order-actions button:disabled{opacity:.3}
+@media(max-width:480px){.order-item{gap:5px;padding:9px 7px}.order-actions button{width:41px;height:43px}.order-name{font-size:.9rem}}
 </style>
 <script src="./content.js" defer></script>
 <script defer>
@@ -42,13 +46,18 @@ const htmlEscape=x=>toText(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 const clone=v=>JSON.parse(JSON.stringify(v));
 let published, content, selectedType='PICTURE_PAIR_SETS', selectedIndex=0, statusTimer;
 const PHOTO_KEYS=['PICTURE_PAIR_SETS','PICTURE_MEMORY_SETS'];
+// Приоритет порядка игр внутри ежедневных комплексов. Выбор игр продолжает меняться по дням.
+const DEFAULT_PLAN_ORDER=['words','changes','picturepairs','focus','symbols','picturefind','sequence','logic','association','wordfluency','planning','everyday','neuro','calm'];
+const GAME_TITLES={words:'Запоминание слов',changes:'Что исчезло?',picturepairs:'Найди пару',focus:'Найди и сосчитай',symbols:'Найди символ',picturefind:'Запомни и найди',sequence:'Вспомни порядок',logic:'Продолжи ряд',association:'Три подсказки',wordfluency:'Подбери слова',planning:'Расставь по порядку',everyday:'Задачи из жизни',neuro:'Нейрогимнастика',calm:'Спокойное дыхание'};
+function normalizePlanOrder(o){const v=Array.isArray(o.PLAN_ORDER)?o.PLAN_ORDER:[];o.PLAN_ORDER=[...new Set([...v.filter(x=>DEFAULT_PLAN_ORDER.includes(x)),...DEFAULT_PLAN_ORDER])];return o;}
+
 function migratePhotoCollections(obj){
  const legacy=Array.isArray(obj.PICTURE_SETS)?obj.PICTURE_SETS:[];
  for(const key of PHOTO_KEYS){
   if(!Array.isArray(obj[key]))obj[key]=clone(legacy).map((s,i)=>({...s,id:(key==='PICTURE_PAIR_SETS'?'pair-':'memory-')+(s.id||i)}));
   for(const rec of obj[key]){if(key==='PICTURE_MEMORY_SETS'&&rec.studySeconds===undefined)rec.studySeconds=15;}
  }
- return obj;
+ return normalizePlanOrder(obj);
 }
 const $=id=>document.getElementById(id);
 function inform(msg,problem=false){const el=$('notify');el.textContent=msg;el.style.background=problem?'#894b42':'#263d34';el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),2600)}
@@ -56,13 +65,21 @@ function restoreDraft(){try{const val=JSON.parse(localStorage.getItem(KEY)||'nul
 function saveDraft(){try{localStorage.setItem(KEY,JSON.stringify(content));$('status').textContent='Черновик сохранён в этом браузере';$('status').classList.remove('warning')}catch(e){$('status').textContent='Не удалось сохранить черновик. Скачай файл.';$('status').classList.add('warning')}}
 function markSaved(){clearTimeout(statusTimer);$('status').textContent='Сохранение…';statusTimer=setTimeout(saveDraft,300)}
 function humanItem(item,idx,type){if(PHOTO_KEYS.includes(type))return `${idx+1}. ${item.title||'Набор фотографий'} (${item.images?.length||0} фото)`;if(Array.isArray(item))return `${idx+1}. ${item.slice(0,3).join(' · ')}${item.length>3?'…':''}`;return `${idx+1}. ${item.title||item.q||item.name||item.clues?.join(' + ')||'Задание'}`.slice(0,80)}
-function listTypes(){const list=$('groups');list.innerHTML=Object.keys(CATALOG).map(k=>`<button class="group ${k===selectedType?'selected':''}" data-type="${k}" type="button">${htmlEscape(CATALOG[k].name)} <span class="counter">${content[k].length}</span></button>`).join('');list.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedType=b.dataset.type;selectedIndex=0;renderAll()}))}
+function listTypes(){const list=$('groups');list.innerHTML=`<button class="group ${selectedType==='__ORDER__'?'selected':''}" type="button" data-type="__ORDER__">Порядок игр <span class="counter">↕</span></button>`+Object.keys(CATALOG).map(k=>`<button class="group ${k===selectedType?'selected':''}" data-type="${k}" type="button">${htmlEscape(CATALOG[k].name)} <span class="counter">${content[k].length}</span></button>`).join('');list.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedType=b.dataset.type;selectedIndex=0;renderAll()}))}
 function getItems(){return content[selectedType]}
 function removeDuplicates(){let removed=0;for(const key of Object.keys(CATALOG)){
  const list=content[key],seen=new Set();content[key]=list.filter(item=>{let fingerprint=JSON.stringify(item);if(seen.has(fingerprint)){removed++;return false}seen.add(fingerprint);return true});
  }
  selectedIndex=0;markSaved();renderAll();inform(removed?`Удалено повторов: ${removed}`:'Одинаковых заданий не найдено');}
-function renderEntryList(){let a=getItems();if(selectedIndex>=a.length)selectedIndex=Math.max(0,a.length-1);$('entry-select').innerHTML=a.map((x,i)=>`<option value="${i}">${htmlEscape(humanItem(x,i,selectedType))}</option>`).join('');$('entry-select').value=String(selectedIndex);$('empty').hidden=a.length!==0;$('fields').hidden=a.length===0;$('delete').disabled=a.length<=1;$('duplicate').disabled=a.length===0}
+function moveEntry(direction){if(selectedType==='__ORDER__')return;const list=getItems();const to=selectedIndex+direction;if(to<0||to>=list.length)return;[list[selectedIndex],list[to]]=[list[to],list[selectedIndex]];selectedIndex=to;markSaved();renderAll();inform('Задание перемещено');}
+function renderGameOrder(){
+  const host=$('fields');const order=content.PLAN_ORDER;
+  host.hidden=false;
+  host.innerHTML=`<div class="editor-game-explain"><strong>Очередность упражнений</strong><p>Перемещай игры кнопками ↑ и ↓. Этот порядок используется в ежедневных занятиях на 15, 20 и 30 минут. Состав игр по-прежнему чередуется по дням. Уже начатые занятия не изменятся.</p></div><div id="order-items">${order.map((k,i)=>`<div class="order-item"><span class="order-num">${i+1}.</span><span class="order-name">${htmlEscape(GAME_TITLES[k])}</span><div class="order-actions"><button data-move-order="-1" data-index="${i}" ${i===0?'disabled':''} title="Выше" aria-label="${htmlEscape(GAME_TITLES[k])}: выше">↑</button><button data-move-order="1" data-index="${i}" ${i===order.length-1?'disabled':''} title="Ниже" aria-label="${htmlEscape(GAME_TITLES[k])}: ниже">↓</button></div></div>`).join('')}</div><p class="footer-note">Это приоритет расположения игр, а не обязательное участие каждой игры каждый день. Например, две фото-игры по-прежнему чередуются.</p>`;
+  host.querySelectorAll('[data-move-order]').forEach(btn=>btn.addEventListener('click',()=>{const i=Number(btn.dataset.index),j=i+Number(btn.dataset.moveOrder);if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];markSaved();renderAll();}));
+  $('mini').innerHTML=`<span class="tag">Порядок игр</span><h3>Порядок, который ты настроила</h3><ol>${order.map(k=>`<li>${htmlEscape(GAME_TITLES[k])}</li>`).join('')}</ol>`;
+}
+function renderEntryList(){let a=getItems();if(selectedIndex>=a.length)selectedIndex=Math.max(0,a.length-1);$('entry-select').innerHTML=a.map((x,i)=>`<option value="${i}">${htmlEscape(humanItem(x,i,selectedType))}</option>`).join('');$('entry-select').value=String(selectedIndex);$('empty').hidden=a.length!==0;$('fields').hidden=a.length===0;$('delete').disabled=a.length<=1;$('duplicate').disabled=a.length===0;$('move-up').disabled=a.length===0||selectedIndex===0;$('move-down').disabled=a.length===0||selectedIndex===a.length-1}
 function fieldText(v,kind){if(kind==='paragraphs')return Array.isArray(v)?v.join('\n\n'):toText(v);if(kind==='lines')return Array.isArray(v)?v.join('\n'):toText(v);return toText(v)}
 async function photoToData(file){
  if(!file.type.startsWith('image/'))throw new Error('Нужен файл изображения JPG, PNG, WEBP или HEIC, поддерживаемый браузером');
@@ -107,7 +124,19 @@ else if(rec.choices){h+=`<h3>${htmlEscape(rec.q||rec.clues?.join(' · ')||'Ка�
 else if(rec.steps){h+=`<h3>${htmlEscape(rec.q)}</h3>${rec.steps.map((step,i)=>`<div class="choice">${i+1}. ${htmlEscape(step)}</div>`).join('')}`}
 else if(rec.paras){h+=`<h3>${htmlEscape(rec.title)}</h3>${rec.paras.slice(0,2).map(p=>`<p>${htmlEscape(p)}</p>`).join('')}`}
 else{h+=`<h3>${htmlEscape(rec.title||rec.name||'Новое упражнение')}</h3><p>${htmlEscape(rec.hint||rec.desc||rec.instruction||'Заполните поля слева.')}</p>`}host.innerHTML=h}
-function renderAll(){const cfg=CATALOG[selectedType];$('section-title').textContent=cfg.name;$('section-desc').textContent=cfg.desc;listTypes();renderEntryList();renderFields();renderMini()}
+function libraryWarning(){const items=getItems();if(!Array.isArray(items)||selectedType==='__ORDER__')return '';
+ const rounds={LOGIC:4,EVERYDAY:4,ASSOCIATIONS:4,SPEECH_PROMPTS:3,PLANNING_TASKS:3,FOCUS_POOLS:4,PICTURE_PAIR_SETS:3,PICTURE_MEMORY_SETS:3};
+ const needed=7*(rounds[selectedType]||0);
+ if(!needed)return '';
+ if(['PICTURE_PAIR_SETS','PICTURE_MEMORY_SETS'].includes(selectedType)){
+  const photos=items.reduce((n,set)=>n+(set.images||[]).filter(im=>im.src).length,0);
+  const perRound=selectedType==='PICTURE_PAIR_SETS'?Math.max(2,Math.min(5,Number(items[0]?.pairs)||3)):1;
+  const minimum=needed*perRound;
+  return `<p class="desc">Сейчас ${photos} фотографий. Для недели с разными ${selectedType==='PICTURE_PAIR_SETS'?'фотографиями во всех парах':'образцами для запоминания'} при 3 раундах в день желательно ${minimum} разных фотографий. Когда снимков меньше, приложение меняет сочетания и старается не показывать недавно использованные изображения.</p>`;
+ }
+ return items.length<needed?`<p class="desc">В библиотеке ${items.length} заданий. Для недели с минимальными повторами при ${rounds[selectedType]} раундах в день желательно около ${needed}. Пока вариантов меньше, программа будет повторять давно показанные раньше новых.</p>`:'';
+}
+function renderAll(){if(selectedType==='__ORDER__'){ $('section-title').textContent='Порядок игр в занятиях';$('section-desc').textContent='Здесь можно менять очередность игр для ежедневных занятий, включая основной режим 20 минут.';listTypes();$('entry-tools').hidden=true;$('edit-hint').hidden=true;$('empty').hidden=true;$('errors').hidden=true;renderGameOrder();return;}$('entry-tools').hidden=false;$('edit-hint').hidden=false;const cfg=CATALOG[selectedType];$('section-title').textContent=cfg.name;$('section-desc').textContent=cfg.desc;listTypes();renderEntryList();renderFields();renderMini();const note=libraryWarning();if(note)$('section-desc').insertAdjacentHTML('beforeend',note)}
 function newRow(type){
  if(PHOTO_KEYS.includes(type))return {id:(type==='PICTURE_PAIR_SETS'?'pairs-':'memory-')+Date.now().toString(36)+Math.random().toString(36).slice(2,6),title:'Новый набор фотографий',pairs:3,findOptions:5,studySeconds:15,images:[]};
  if(CATALOG[type].kind==='list')return [];
@@ -165,8 +194,10 @@ function download(filename,str,mime){const blob=new Blob([str],{type:mime});cons
 document.addEventListener('DOMContentLoaded',()=>{
   if(!window.YASNY_CONTENT){document.body.innerHTML='<h1 style="padding:35px">Не загружен content.js. Положите studio.html рядом с content.js.</h1>';return}
   published=migratePhotoCollections(clone(window.YASNY_CONTENT));content=migratePhotoCollections(restoreDraft()||clone(published));renderAll();$('status').textContent=restoreDraft()?'Найден сохранённый черновик':'Пока без изменений';
-  $('entry-select').addEventListener('change',e=>{selectedIndex=Number(e.target.value);renderFields();renderMini()});
+  $('entry-select').addEventListener('change',e=>{selectedIndex=Number(e.target.value);renderEntryList();renderFields();renderMini();const note=libraryWarning();if(note)$('section-desc').insertAdjacentHTML('beforeend',note)});
   $('dedupe').onclick=removeDuplicates;
+  $('move-up').onclick=()=>moveEntry(-1);
+  $('move-down').onclick=()=>moveEntry(1);
   $('add').onclick=()=>{getItems().push(newRow(selectedType));selectedIndex=getItems().length-1;markSaved();renderAll();inform('Задание добавлено — отредактируйте поля')};
   $('duplicate').onclick=()=>{getItems().splice(selectedIndex+1,0,clone(getItems()[selectedIndex]));selectedIndex++;let rec=getItems()[selectedIndex];if(!Array.isArray(rec)&&'id'in rec)rec.id='copy-'+Math.random().toString(36).slice(2,8);markSaved();renderAll();inform('Создана копия задания')};
   $('delete').onclick=()=>{if(getItems().length<=1)return inform('В этой категории нужно оставить хотя бы одно задание',true);if(!confirm('Удалить это задание из черновика?'))return;getItems().splice(selectedIndex,1);selectedIndex=Math.max(0,selectedIndex-1);markSaved();renderAll()};
@@ -179,10 +210,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 </head>
 <body>
-<header><div class="top"><div class="logo"><div class="mark" aria-hidden="true">✳</div><div><h1>Редактор игр</h1><p class="sub">Ясный день 50+ · две отдельные фото-игры</p></div></div><div class="actions"><button class="button" id="save" type="button">Сохранить черновик</button><button class="button" id="check" type="button">Проверить</button><button class="button primary" id="download" type="button">Скачать обновление</button></div><div class="status" id="status" aria-live="polite">Загрузка…</div></div></header>
+<header><div class="top"><div class="logo"><div class="mark" aria-hidden="true">✳</div><div><h1>Редактор игр</h1><p class="sub">Ясный день 50+ · игры, задания и порядок занятий</p></div></div><div class="actions"><button class="button" id="save" type="button">Сохранить черновик</button><button class="button" id="check" type="button">Проверить</button><button class="button primary" id="download" type="button">Скачать обновление</button></div><div class="status" id="status" aria-live="polite">Загрузка…</div></div></header>
 <main>
 <aside class="panel sidebar"><h2>Разделы</h2><div class="groups" id="groups"></div><div class="callout"><b>Как устроено сохранение</b>Изменения в редакторе видны только тебе, пока не загрузишь обновлённый файл на GitHub.</div></aside>
-<section class="panel"><div class="topline"><div><h2 id="section-title"></h2><p class="desc" id="section-desc"></p></div></div><div class="entry-tools"><select aria-label="Выберите задание" id="entry-select"></select><button class="button" id="add" type="button">+ Новое с нуля</button><button class="button" id="duplicate" type="button">Копировать</button><button class="button warn" id="delete" type="button">Удалить</button><button class="button" id="dedupe" type="button">Убрать дубли</button></div><p class="desc" id="edit-hint">Выберите задание, затем меняйте поля ниже. Кнопка «Новое с нуля» создаёт чистую форму, а «Копировать» — точную копию.</p><div id="empty" class="entryempty" hidden>Здесь пока нет заданий. Нажмите «Добавить».</div><div id="fields"></div><div id="errors" class="callout" hidden aria-live="polite"></div></section>
+<section class="panel"><div class="topline"><div><h2 id="section-title"></h2><p class="desc" id="section-desc"></p></div></div><div class="entry-tools" id="entry-tools"><select aria-label="Выберите задание" id="entry-select"></select><button class="button" type="button" id="move-up" title="Переместить выбранное задание выше">↑ Выше</button><button class="button" type="button" id="move-down" title="Переместить выбранное задание ниже">↓ Ниже</button><button class="button" id="add" type="button">+ Новое с нуля</button><button class="button" id="duplicate" type="button">Копировать</button><button class="button warn" id="delete" type="button">Удалить</button><button class="button" id="dedupe" type="button">Убрать дубли</button></div><p class="desc" id="edit-hint">Выбери задание и меняй его ниже. Кнопками «Выше» и «Ниже» можно изменить положение в списке. «Новое с нуля» создаёт чистую форму, «Копировать» — копию.</p><div id="empty" class="entryempty" hidden>Здесь пока нет заданий. Нажмите «Добавить».</div><div id="fields"></div><div id="errors" class="callout" hidden aria-live="polite"></div></section>
 <aside class="panel preview-panel"><h2>Как выглядит задание</h2><p class="hint">Ниже быстрый просмотр. Нажмите «Тестировать», чтобы сразу открыть именно выбранную фото-игру с её настройками.</p><div class="mini" id="mini"></div><div class="stages"><button class="button soft" id="preview" type="button">▶ Тестировать в приложении</button><a class="button" href="./index.html" target="_blank" rel="noopener">Открыть обычное приложение</a></div><div class="callout"><b>Публикация обновления</b>1. Нажми «Скачать обновление». Каждая из двух фото-игр хранит свои наборы. Файл content.js будет публичным.<br/>2. На GitHub замени файл <code>content.js</code> скачанным.<br/>3. Нажми <strong>Commit changes</strong>. Участники увидят новую версию.</div><p class="footer-note">Предпросмотр создаёт отдельные тестовые профили и не меняет прогресс настоящих участников. Страница редактора публично доступна по ссылке, но не даёт никому прав изменять файлы GitHub.</p><button class="button warn" id="reset" type="button" style="width:100%;margin-top:14px">Сбросить черновик</button></aside>
 </main><div id="notify" class="notify" role="status" aria-live="polite"></div>
 </body>

@@ -155,3 +155,11 @@ h1,h2,h3,.game-title{color:var(--ink)}
 
 /* Фото: отдельный этап запоминания, затем выбор без видимого образца */
 .photo-memory-timer{margin:14px 0;font-size:1.08rem;color:#4e535d;text-align:center}.photo-memory-timer strong{font-variant-numeric:tabular-nums;font-size:1.35rem;color:#6e4651}.photo-memory-result{margin-top:18px;padding:15px;border-radius:15px;border:1px solid #e4dad8;background:#f8f2ed;text-align:center}.photo-memory-result img{max-width:210px;width:100%;aspect-ratio:1;object-fit:cover;border-radius:13px}
+
+/* Итог недели: спокойные контрастные цифры и крупные подписи. */
+.weekly-report h2{margin:0}.weekly-report .chip{white-space:nowrap}
+.weekly-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0 20px}
+.weekly-stats>div{background:#f7f2ee;border:1px solid #e3d8d2;border-radius:16px;padding:13px 10px;display:flex;flex-direction:column;gap:6px}
+.weekly-stats strong{font-size:1.7rem;color:#48363e;font-weight:820;line-height:1.15;font-variant-numeric:tabular-nums}
+.weekly-stats span{font-size:.82rem;color:#4a4c53;line-height:1.35}
+@media(max-width:420px){.weekly-stats{gap:6px}.weekly-stats>div{padding:11px 6px}.weekly-stats strong{font-size:1.45rem}.weekly-stats span{font-size:.74rem}}
