@@ -141,3 +141,14 @@ h1,h2,h3,.game-title{color:var(--ink)}
 .profile-form input{width:100%;min-height:60px;background:#FFFDFB;border:2px solid #A38A85;border-radius:14px;color:var(--ink);padding:12px 14px;font-size:1rem}
 .profile-form input:focus-visible,.profile-switch-btn:focus-visible{outline:4px solid #9A6A1F;outline-offset:2px}
 @media(max-width:580px){.profile-switch{font-size:.86rem;padding:10px 12px}.profile-switch-btn{font-size:.8rem}.profile-actions{gap:8px}.profile-actions .btn{padding:10px 8px;font-size:.86rem;min-width:0}}
+
+/* Игры с фотографиями: большие кнопки, без ограничений по времени */
+.photo-pairs-grid,.photo-find-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
+.photo-tile,.photo-choice{min-width:0;min-height:102px;border:2px solid #d5c8c4;border-radius:18px;background:#f4eae7;padding:5px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+.photo-tile span{font-size:2.7rem;font-weight:800;color:#765459}.photo-tile img,.photo-choice img,.photo-target img{height:100%;width:100%;object-fit:cover;border-radius:12px}
+.photo-tile.open,.photo-choice:focus-visible{border-color:#765459;background:#fff}
+.photo-tile.matched{border:4px solid #44715c;background:#e5f2e9;opacity:1}
+.photo-target{border-radius:20px;padding:10px;background:#f6eee9;border:2px solid #ddc5bb;display:flex;flex-direction:column;gap:6px;align-items:center;max-width:250px;margin:16px auto}
+.photo-target img{height:180px;object-fit:cover}.photo-target span{font-size:.88rem;font-weight:800;color:#765459;letter-spacing:.08em}
+.photo-choice{background:white}.photo-choice:hover{border-color:#765459}
+@media(max-width:420px){.photo-pairs-grid,.photo-find-grid{gap:8px}.photo-tile,.photo-choice{min-height:85px;border-radius:13px}.photo-target img{height:150px}}

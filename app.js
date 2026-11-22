@@ -13,11 +13,13 @@ const PROFILES_STORE = IS_PREVIEW ? 'yasny-den-preview-profiles-v1' : 'yasny-den
 function buildPlan(minutes, date = new Date()) {
  const day = Math.floor(new Date(date.getFullYear(),date.getMonth(),date.getDate()).getTime()/86400000);
  const alt = (items, step=0) => items[(day+step)%items.length];
- if(minutes === 15) return [alt(['words','changes']),alt(['focus','symbols']),alt(['logic','association']), 'neuro', 'calm'];
- if(minutes === 30) return [alt(['words','changes']),alt(['focus','symbols']), 'sequence',alt(['logic','association']), 'wordfluency', alt(['everyday','planning']),alt(['changes','words']), 'neuro', 'calm'];
- return [alt(['words','changes']),alt(['focus','symbols']), 'sequence',alt(['logic','association']),alt(['wordfluency','planning','everyday'],1), 'neuro', 'calm'];
+ if(minutes === 15) return [alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']),alt(['logic','association']), 'neuro', 'calm'];
+ if(minutes === 30) return [alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']), 'sequence',alt(['logic','association']), 'wordfluency', alt(['everyday','planning']),alt(['picturefind','picturepairs','changes']), 'neuro', 'calm'];
+ return [alt(['words','changes','picturepairs']),alt(['focus','symbols','picturefind']), 'sequence',alt(['logic','association']),alt(['wordfluency','planning','everyday'],1), 'neuro', 'calm'];
 }
 const EXERCISES = {
+  picturepairs: {name:'Найди пару',icon:'▧',label:'Зрительная память',time:'3–5 мин',desc:'Открывайте карточки с фотографиями и ищите одинаковые пары.',source:'review'},
+  picturefind: {name:'Найди такую же картинку',icon:'▣',label:'Зрительное внимание',time:'2–4 мин',desc:'Рассмотрите фотографию и найдите такую же среди нескольких изображений.',source:'review'},
   words:    {name:'Запомните слова', icon:'✦',label:'Память',time:'3–5 мин',desc:'Запоминайте слова и узнавайте их среди других.',source:'active'},
   focus:    {name:'Найдите и сосчитайте',icon:'◎',label:'Внимание',time:'2–4 мин',desc:'Ищите нужное слово среди похожих.',source:'review'},
   sequence: {name:'Вспомните порядок',icon:'☷',label:'Рабочая память',time:'3–5 мин',desc:'Запоминайте последовательность и повторяйте её.',source:'review'},
@@ -42,6 +44,7 @@ const EVERYDAY = window.YASNY_CONTENT.EVERYDAY;
 const ASSOCIATIONS = window.YASNY_CONTENT.ASSOCIATIONS;
 const SPEECH_PROMPTS = window.YASNY_CONTENT.SPEECH_PROMPTS;
 const PLANNING_TASKS = window.YASNY_CONTENT.PLANNING_TASKS;
+const PICTURE_SETS = window.YASNY_CONTENT.PICTURE_SETS || [];
 const SYMBOL_TYPES=['●','▲','◆','■','★','✚'];
 
 const SOURCES = {
@@ -68,7 +71,7 @@ const NEURO_VIDEOS = window.YASNY_CONTENT.NEURO_VIDEOS;
 // Каждое время ориентировочное, без принудительного таймера. Можно пропускать шаги.
 const NEURO_STEPS = window.YASNY_CONTENT.NEURO_STEPS;
 let activeNeuroVideo=null;
-const MAX_ROUNDS = {words:3,focus:4,sequence:3,logic:4,everyday:4,calm:1,neuro:NEURO_STEPS.length,changes:3,symbols:4,association:4,wordfluency:3,planning:3};
+const MAX_ROUNDS = {picturepairs:3,picturefind:3,words:3,focus:4,sequence:3,logic:4,everyday:4,calm:1,neuro:NEURO_STEPS.length,changes:3,symbols:4,association:4,wordfluency:3,planning:3};
 
 
 const main = document.getElementById('main');
@@ -259,6 +262,21 @@ function resumeSession(){const s=state.session;if(!s){setView('home');return}if(
 function startGame(type,daily){if(!EXERCISES[type])return;stopBreathing();if(daily)state.dailyDraft=null;else state.soloDraft=null;game={type,daily,round:0,phase:'',correct:0,selected:[],answers:[],record:null,used:[]};view='exercise';generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'});focusMain()}
 function generateRound(){const g=game;g.selected=[];g.feedback='';g.why='';g.correctAnswer='';
  switch(g.type){
+ case 'picturepairs': {
+  const usable=PICTURE_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=4);
+  if(!usable.length){g.record={setIndex:-1,tiles:[],opened:[],matched:[],attempts:0};g.phase='answer';break;}
+  const chosen=pick(usable);const count=Math.min(Math.max(2,Math.min(5,Number(chosen.s.pairs)||3)),chosen.s.images.filter(x=>x.src).length);
+  const indices=shuffle(chosen.s.images.map((_,i)=>i).filter(i=>chosen.s.images[i].src)).slice(0,count);
+  const tiles=shuffle(indices.flatMap(n=>[{image:n,key:n},{image:n,key:n}])).map((t,i)=>({...t,slot:i}));
+  g.record={setIndex:chosen.i,tiles,opened:[],matched:[],attempts:0};g.phase='answer';break;
+ }
+ case 'picturefind': {
+  const usable=PICTURE_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=4);
+  if(!usable.length){g.record={setIndex:-1,options:[],target:-1};g.phase='answer';break;}
+  const chosen=pick(usable),valid=chosen.s.images.map((_,i)=>i).filter(i=>chosen.s.images[i].src);
+  const target=pick(valid),options=shuffle([target,...shuffle(valid.filter(i=>i!==target)).slice(0,Math.min(Math.max(2,Math.min(5,(Number(chosen.s.findOptions)||5)-1)),valid.length-1))]);
+  g.record={setIndex:chosen.i,target,options};g.phase='answer';break;
+ }
  case 'words': {const pool=pick(WORD_POOLS),n=4+(state.font===2?0:Math.min(2,g.round));const words=shuffle(pool).slice(0,n);g.record={words,options:shuffle([...words,...shuffle(pool.filter(w=>!words.includes(w))).slice(0,Math.min(6,12-n))])};g.phase='show';break}
  case 'focus': {const pool=pick(FOCUS_POOLS),n=3+(g.round%3),target=pool[0];const cells=shuffle([...Array(n).fill(target),...Array.from({length:16-n},()=>pick(pool.slice(1)))]);g.record={cells,target,count:n};g.phase='answer';break}
  case 'sequence': {const pool=pick(SEQ_POOLS),n=3+(g.round%2);g.record={words:shuffle(pool).slice(0,n)};g.phase='show';break}
@@ -274,6 +292,14 @@ function generateRound(){const g=game;g.selected=[];g.feedback='';g.why='';g.cor
  }
 }
 function renderGame(){if(!game){setView('library');return}const g=game,e=EXERCISES[g.type],total=MAX_ROUNDS[g.type],cur=Math.min(g.round+1,total);let content='';
+ if(g.type==='picturepairs'){
+  const r=g.record,photos=PICTURE_SETS[r.setIndex]?.images||[];
+  content=photos.length?`<p class="hint">Нажимайте на карточки по две. Постарайтесь найти одинаковые фотографии. Если не совпали, следующий выбор закроет их.</p><p class="small muted">Найдено пар: ${r.matched.length} из ${r.tiles.length/2}. Без таймера.</p><div class="photo-pairs-grid">${r.tiles.map((t,i)=>{const open=r.opened.includes(i)||r.matched.includes(t.key);const photo=photos[t.image];return `<button type="button" class="photo-tile ${open?'open':''} ${r.matched.includes(t.key)?'matched':''}" data-action="picture-open" data-index="${i}" aria-label="${open?escapeText(photo.name):`Закрытая карточка ${i+1}`} " ${g.phase==='feedback'||r.matched.includes(t.key)?'disabled':''}>${open?`<img alt="${escapeText(photo.name)}" src="${escapeText(photo.src)}"/>`:'<span aria-hidden="true">?</span>'}</button>`}).join('')}</div>`:'<p class="banner">Добавьте фотографии через редактор игр, чтобы запустить это задание.</p>';
+ }
+ if(g.type==='picturefind'){
+  const r=g.record,photos=PICTURE_SETS[r.setIndex]?.images||[];
+  content=photos.length?`<p class="hint">Рассмотрите образец. Какая из картинок ниже точно такая же?</p><div class="photo-target"><img src="${escapeText(photos[r.target].src)}" alt="Образец: ${escapeText(photos[r.target].name)}"/><span>ОБРАЗЕЦ</span></div><div class="photo-find-grid">${r.options.map((idx,i)=>`<button type="button" class="photo-choice" data-action="picture-answer" data-index="${idx}" aria-label="Вариант ${i+1}: ${escapeText(photos[idx].name)}" ${g.phase==='feedback'?'disabled':''}><img src="${escapeText(photos[idx].src)}" alt="Вариант ${i+1}"/></button>`).join('')}</div>`:'<p class="banner">Добавьте фотографии через редактор игр, чтобы запустить это задание.</p>';
+ }
  if(g.type==='words'){
   if(g.phase==='show')content=`<p class="hint">Прочитайте слова в удобном темпе. Постарайтесь их запомнить. Когда будете готовы, нажмите кнопку.</p><ul class="memory-words">${g.record.words.map(w=>`<li>${w}</li>`).join('')}</ul>${btn('Я запомнил(а). Дальше','hidewords','full')}`;
   else content=`<p class="hint">Какие слова были на предыдущем экране? Отметьте их, затем нажмите «Проверить».</p><div class="options centered">${g.record.options.map(w=>`<button class="option ${g.selected.includes(w)?'selected':''}" type="button" aria-pressed="${g.selected.includes(w)}" data-action="toggleword" data-value="${w}" ${g.phase==='feedback'?'disabled':''}>${w}</button>`).join('')}</div>${g.phase==='answer'?`<p class="small muted topspace" aria-live="polite">Выбрано: ${g.selected.length}. Можно выбрать столько слов, сколько помните.</p>${btn('Проверить','checkwords','full topspace')}`:''}`;
@@ -321,6 +347,23 @@ function shuffleStable(arr){return [...arr].sort((a,b)=>a.localeCompare(b,'ru'))
 function renderCalm(){if(game.phase==='ready')return `<p>Сядьте удобно. Дышите спокойно, без задержек и без усилий. Упражнение занимает около полутора минут.</p><div class="tip">Вдох — примерно 4 секунды, плавный выдох — примерно 6 секунд. Если появляются неприятные ощущения или головокружение, остановитесь.</div><div class="breath-wrap"><div class="breath-circle" aria-hidden="true">◌</div></div>${btn('Начать спокойное дыхание','start-breath','full')}`;
  if(game.phase==='breathing')return `<p>Следуйте подсказке, но подстраивайте ритм под самочувствие. Не задерживайте дыхание.</p><div class="breath-wrap"><div class="breath-circle inhale" id="breath-circle" aria-hidden="true">Вдох</div></div><div class="timer" id="breath-timer" aria-live="off">1:30</div><p id="breath-guide" class="muted" style="text-align:center">Медленный вдох</p>${btn('Завершить раньше','finish-breath','secondary full topspace')}`;
  return `<div class="feedback" role="status"><strong>Спокойная практика завершена.</strong><p>Можно отдохнуть и вернуться к обычным делам. Если упражнение было некомфортным, не нужно его повторять.</p></div>${btn('Продолжить','complete-breath','full topspace')}`;
+}
+function clickPictureCard(index){
+ const g=game;if(!g||g.type!=='picturepairs'||g.phase!=='answer')return;
+ const r=g.record,card=r.tiles[index];if(!card||r.matched.includes(card.key))return;
+ if(r.opened.length===2){r.opened=[];}
+ if(r.opened.includes(index))return;
+ r.opened.push(index);
+ if(r.opened.length===2){r.attempts++;const [a,b]=r.opened.map(i=>r.tiles[i]);if(a.key===b.key){r.matched.push(a.key);r.opened=[];
+  if(r.matched.length===r.tiles.length/2){g.correct++;g.phase='feedback';g.feedback='Все пары найдены!';g.why=`Вы открыли ${r.matched.length} пар за ${r.attempts} попыток.`;}
+ }}
+ renderGame();
+}
+function clickPictureChoice(index){
+ const g=game;if(!g||g.type!=='picturefind'||g.phase!=='answer')return;
+ const ok=index===g.record.target;if(ok)g.correct++;
+ g.phase='feedback';g.feedback=ok?'Правильно! Вы нашли такую же картинку.':'Хорошая попытка. Посмотрите ещё раз на образец.';
+ g.why=`Нужная фотография: ${PICTURE_SETS[g.record.setIndex].images[g.record.target].name}.`;renderGame();
 }
 function checkAnswer(answer){const g=game;if(!g||g.phase!=='answer')return;let ok=false,why='';
  if(g.type==='focus'){ok=Number(answer)===g.record.count;why=`Слово «${g.record.target}» встречается ${g.record.count} раз.`}
@@ -391,6 +434,8 @@ function handleClick(e){const el=e.target.closest('[data-action]');if(!el||el.di
    game.why=words.length?`Вы записали ${words.length} вариантов. Здорово, что потренировали подбор слов.`:'Спасибо за участие. Можно выполнять задание вслух и не записывать ответы.';
    game.phase='feedback';renderGame();
  }break;
+ case'picture-open':clickPictureCard(Number(el.dataset.index));break;
+ case'picture-answer':clickPictureChoice(Number(el.dataset.index));break;
  case'answer':checkAnswer(el.dataset.value);break;
  case'next-round':nextRound();break;
  case'skip':finishGame(true);break;
