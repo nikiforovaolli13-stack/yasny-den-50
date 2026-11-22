@@ -1,6 +1,6 @@
 'use strict';
 
-/* Ясный день 50+ — исследовательский прототип 1.6.
+/* Ясный день 50+ — исследовательский прототип 2.3.
    Все данные хранятся только на устройстве. Нет аналитики, регистрации или сервера.
    Типы заданий основаны на изученных методах когнитивной тренировки;
    именно эта программная реализация НЕ проходила клиническую проверку. */
@@ -99,7 +99,22 @@ const NEURO_VIDEOS = window.YASNY_CONTENT.NEURO_VIDEOS;
 // Каждое время ориентировочное, без принудительного таймера. Можно пропускать шаги.
 const NEURO_STEPS = window.YASNY_CONTENT.NEURO_STEPS;
 let activeNeuroVideo=null;
-const MAX_ROUNDS = {picturepairs:3,picturefind:3,words:3,focus:4,sequence:3,logic:4,everyday:4,calm:1,neuro:NEURO_STEPS.length,changes:3,symbols:4,association:4,wordfluency:3,planning:3};
+// Количество раундов задаётся отдельно для каждой игры в редакторе.
+// При отсутствии настроек сохраняем значения старых выпусков.
+const DEFAULT_ROUNDS = {picturepairs:3,picturefind:3,words:3,focus:4,sequence:3,logic:4,everyday:4,calm:1,neuro:NEURO_STEPS.length,changes:3,symbols:4,association:4,wordfluency:3,planning:3};
+function roundLimit(type){return type==='calm'?1:type==='neuro'?Math.max(1,NEURO_STEPS.length):8}
+const MAX_ROUNDS = Object.fromEntries(Object.entries(DEFAULT_ROUNDS).map(([type,defaultCount])=>{
+ const raw=window.YASNY_CONTENT?.ROUND_COUNTS?.[type];
+ const n=Number(raw);
+ return [type,Number.isInteger(n)&&n>=1&&n<=roundLimit(type)?n:defaultCount];
+}));
+// Снимок раундов в уже начатой игре защищает незавершённые занятия от правок редактора.
+function roundTotal(g){
+ if(!g||!Object.prototype.hasOwnProperty.call(DEFAULT_ROUNDS,g.type))return 1;
+ const n=g.totalRounds;
+ return Number.isInteger(n)&&n>=1&&n<=roundLimit(g.type)?n:DEFAULT_ROUNDS[g.type];
+}
+
 
 
 const main = document.getElementById('main');
@@ -123,7 +138,7 @@ function normalizeState(data){
   dailyDraft:validDraft(d.dailyDraft)?d.dailyDraft:null,
   soloDraft:validDraft(d.soloDraft)?d.soloDraft:null};
 }
-function validDraft(g){return g&&typeof g==='object'&&Object.prototype.hasOwnProperty.call(EXERCISES,g.type)&&Number.isInteger(g.round)&&g.round>=0&&g.round<MAX_ROUNDS[g.type]&&typeof g.phase==='string'&&g.record&&typeof g.record==='object'}
+function validDraft(g){return g&&typeof g==='object'&&Object.prototype.hasOwnProperty.call(EXERCISES,g.type)&&Number.isInteger(g.round)&&g.round>=0&&g.round<roundTotal(g)&&typeof g.phase==='string'&&g.record&&typeof g.record==='object'}
 function loadProfiles(){
  try{
   const stored=JSON.parse(localStorage.getItem(PROFILES_STORE)||'null');
@@ -316,7 +331,7 @@ function renderNeuro(){
 }
 function renderNeuroStep(){
  const g=game,step=NEURO_STEPS[g.round];
- return `<div class="neuro-guided"><span class="chip">${escapeText(step.kind)}</span><h2>${escapeText(step.name)}</h2><p class="muted">Ориентир: ${escapeText(step.duration)}</p><div class="neuro-instruction">${escapeText(step.instruction)}</div><div class="tip"><strong>Более простой вариант:</strong> ${escapeText(step.easier)}</div><p class="small muted">Попробуйте выполнить несколько повторений. Спешить не нужно. При дискомфорте остановитесь.</p>${btn(g.round===NEURO_STEPS.length-1?'Завершить нейрогимнастику':'Движение выполнено. Далее','next-neuro','full')}${btn('Посмотреть видео с упражнениями','neuro','secondary full topspace')}</div>`;
+ return `<div class="neuro-guided"><span class="chip">${escapeText(step.kind)}</span><h2>${escapeText(step.name)}</h2><p class="muted">Ориентир: ${escapeText(step.duration)}</p><div class="neuro-instruction">${escapeText(step.instruction)}</div><div class="tip"><strong>Более простой вариант:</strong> ${escapeText(step.easier)}</div><p class="small muted">Попробуйте выполнить несколько повторений. Спешить не нужно. При дискомфорте остановитесь.</p>${btn(g.round===roundTotal(g)-1?'Завершить нейрогимнастику':'Движение выполнено. Далее','next-neuro','full')}${btn('Посмотреть видео с упражнениями','neuro','secondary full topspace')}</div>`;
 }
 function renderArticles(){setMain(`<span class="eyebrow">Коротко и по делу</span><h1>Полезные статьи</h1><p class="lead">Чтение займёт около двух минут. В конце каждой статьи есть простая идея на сегодня.</p><div class="grid section">${ARTICLES.map(a=>`<article class="card article-card"><span class="chip">${escapeText(a.category)} · ${a.minutes} мин</span><h3>${escapeText(a.title)}</h3><p class="muted small">${escapeText(a.paras[0].slice(0,125))}…</p>${btn('Прочитать','article','secondary',`data-id="${a.id}"`)}</article>`).join('')}</div>`)}
 let activeArticle = ARTICLES[0].id;
@@ -338,7 +353,7 @@ function renderSettings(){setMain(`<span class="eyebrow">Настройте по
  <section class="card section"><h2>О приложении</h2><p>«Ясный день» создан для спокойных занятий на память, внимание, мышление и координацию. В основе упражнений лежат направления, которые изучают специалисты. Сама эта версия приложения ещё не проходила отдельную научную проверку эффективности.</p><p>Материалы носят информационный характер и не заменяют консультацию специалиста. Если изменения памяти или самочувствия заметно мешают привычной жизни, лучше обсудить их с врачом.</p><h3>Научные и методические источники</h3><ul class="source-list">${Object.keys(SOURCES).map(k=>`<li>${linkSource(k)}</li>`).join('')}</ul></section>`)}
 function startSession(restart=false){if(state.session && !restart){resumeSession();return}state.dailyDraft=null;state.session={mode:state.mode,plan:buildPlan(state.mode),position:0,startedAt:Date.now(),results:[]};save();resumeSession()}
 function resumeSession(){const s=state.session;if(!s){setView('home');return}if(s.position>=s.plan.length){completeSession();return}const draft=state.dailyDraft;if(validDraft(draft)&&draft.daily&&draft.type===s.plan[s.position]){game=draft;view='exercise';renderGame();window.scrollTo({top:0,behavior:'instant'});focusMain();return}startGame(s.plan[s.position],true)}
-function startGame(type,daily){if(!EXERCISES[type])return;stopBreathing();clearPhotoStudyTimer();if(daily)state.dailyDraft=null;else state.soloDraft=null;game={type,daily,round:0,phase:'',correct:0,selected:[],answers:[],record:null,used:[]};view='exercise';generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'});focusMain()}
+function startGame(type,daily){if(!EXERCISES[type])return;stopBreathing();clearPhotoStudyTimer();if(daily)state.dailyDraft=null;else state.soloDraft=null;game={type,daily,round:0,totalRounds:MAX_ROUNDS[type],phase:'',correct:0,selected:[],answers:[],record:null,used:[]};view='exercise';generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'});focusMain()}
 function generateRound(){clearPhotoStudyTimer();const g=game;g.selected=[];g.feedback='';g.why='';g.correctAnswer='';
  switch(g.type){
  case 'picturepairs': {
@@ -388,7 +403,7 @@ function generateRound(){clearPhotoStudyTimer();const g=game;g.selected=[];g.fee
  case 'neuro': {g.phase='ready';g.record={};break}
  }
 }
-function renderGame(){clearPhotoStudyTimer();if(!game){setView('library');return}const g=game,e=EXERCISES[g.type],total=MAX_ROUNDS[g.type],cur=Math.min(g.round+1,total);let content='';
+function renderGame(){clearPhotoStudyTimer();if(!game){setView('library');return}const g=game,e=EXERCISES[g.type],total=roundTotal(g),cur=Math.min(g.round+1,total);let content='';
  if(g.type==='picturepairs'){
   const r=g.record,photos=PICTURE_PAIR_SETS[r.setIndex]?.images||[];
   content=photos.length?`<p class="hint">Нажимайте на карточки по две. Постарайтесь найти одинаковые фотографии. Если не совпали, следующий выбор закроет их.</p><p class="small muted">Найдено пар: ${r.matched.length} из ${r.tiles.length/2}. Без таймера.</p><div class="photo-pairs-grid">${r.tiles.map((t,i)=>{const open=r.opened.includes(i)||r.matched.includes(t.key);const photo=photos[t.image];return `<button type="button" class="photo-tile ${open?'open':''} ${r.matched.includes(t.key)?'matched':''}" data-action="picture-open" data-index="${i}" aria-label="${open?escapeText(photo.name):`Закрытая карточка ${i+1}`} " ${g.phase==='feedback'||r.matched.includes(t.key)?'disabled':''}>${open?`<img alt="${escapeText(photo.name)}" src="${escapeText(photo.src)}"/>`:'<span aria-hidden="true">?</span>'}</button>`}).join('')}</div>`:'<p class="banner">Добавьте фотографии через редактор игр, чтобы запустить это задание.</p>';
@@ -440,7 +455,7 @@ function renderGame(){clearPhotoStudyTimer();if(!game){setView('library');return
  setMain(`<button class="back" data-action="leavegame">← ${g.daily?'Прервать на время':'Все упражнения'}</button>
  <span class="eyebrow">${e.label}</span><h1>${e.name}</h1>
  <div class="card soft"><div class="row between"><span class="small muted">${g.daily?`Упражнение ${fullDone+1} из ${fullCount}`:`Раунд ${cur} из ${total}`}</span><span class="chip">Без спешки</span></div><div class="progress-bar" role="progressbar" aria-label="Ход занятия" aria-valuenow="${g.daily?Math.floor((fullDone/fullCount)*100):Math.floor((g.round/total)*100)}" aria-valuemin="0" aria-valuemax="100"><div style="width:${g.daily?(fullDone/fullCount)*100:(g.round/total)*100}%"></div></div></div>
- <section class="game-card"><div class="game-title">${g.type==='calm'?'Устройтесь удобно':g.type==='neuro'?`Движение ${cur} из ${total}`:`Раунд ${cur}`}</div>${content}</section>
+ <section class="game-card"><div class="game-title">${g.type==='calm'?'Устройтесь удобно':g.type==='neuro'?`Движение ${cur} из ${total}`:`Раунд ${cur} из ${total}`}</div>${content}</section>
  <p class="muted small">Можно пропустить задание, сделать перерыв или попробовать ещё раз. Здесь не нужно соревноваться.</p>
  ${g.phase!=='feedback'&&g.type!=='calm'?btn('Пропустить упражнение','skip','secondary small-btn'):''}`);
  saveGameDraft();
@@ -476,8 +491,8 @@ function checkAnswer(answer){const g=game;if(!g||g.phase!=='answer')return;let o
  if(ok)g.correct++;g.feedback=ok?'Верно! Хорошая работа.':'В этот раз ответ другой. Посмотрите подсказку.';g.why=why;g.phase='feedback';renderGame();}
 function checkWords(){const g=game;if(!g||g.type!=='words'||g.phase!=='answer')return;const hits=g.selected.filter(w=>g.record.words.includes(w)).length;const misses=g.selected.length-hits;const all=hits===g.record.words.length&&misses===0;g.correct+=all?1:0;g.feedback=all?'Все слова вспомнили!':'Хорошая попытка. Продолжаем.';g.why=`Верно отмечено слов: ${hits} из ${g.record.words.length}${misses?`. Лишних отметок: ${misses}`:''}. Были слова: ${g.record.words.join(', ')}.`;g.phase='feedback';renderGame()}
 function checkSequence(){const g=game;if(!g||!['sequence','planning'].includes(g.type)||g.phase!=='answer'||g.selected.length!==g.record.words.length)return;const n=g.record.words.filter((w,i)=>g.selected[i]===w).length,ok=n===g.record.words.length;g.correct+=ok?1:0;g.feedback=ok?'Вы запомнили порядок!':'Спасибо за попытку. Тренируемся дальше.';g.why=`${g.type==='planning'?g.record.why:`На своих местах: ${n} из ${g.record.words.length}.`} Правильный порядок: ${g.record.words.join(' → ')}.`;g.phase='feedback';renderGame()}
-function nextRound(){if(!game)return;if(game.round+1<MAX_ROUNDS[game.type]){game.round++;generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'})}else finishGame(false)}
-function finishGame(skipped){if(!game)return;stopBreathing();clearPhotoStudyTimer();lastResult={name:EXERCISES[game.type].name,correct:game.correct,total:MAX_ROUNDS[game.type],skipped};const daily=game.daily;if(!skipped){state.activityLog.push({date:dateKey(),type:game.type,daily,correct:game.correct,total:MAX_ROUNDS[game.type]});state.activityLog=state.activityLog.slice(-600)}if(daily)state.dailyDraft=null;else state.soloDraft=null;game=null;
+function nextRound(){if(!game)return;if(game.round+1<roundTotal(game)){game.round++;generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'})}else finishGame(false)}
+function finishGame(skipped){if(!game)return;stopBreathing();clearPhotoStudyTimer();lastResult={name:EXERCISES[game.type].name,correct:game.correct,total:roundTotal(game),skipped};const daily=game.daily;if(!skipped){state.activityLog.push({date:dateKey(),type:game.type,daily,correct:game.correct,total:roundTotal(game)});state.activityLog=state.activityLog.slice(-600)}if(daily)state.dailyDraft=null;else state.soloDraft=null;game=null;
  if(daily&&state.session){state.session.results=state.session.results||[];state.session.results.push(lastResult);state.session.position++;save();if(state.session.position>=state.session.plan.length){completeSession()}else{view='between';renderBetween()}}
  else {save();view='between';renderBetween()}
  window.scrollTo({top:0,behavior:'instant'});focusMain();}

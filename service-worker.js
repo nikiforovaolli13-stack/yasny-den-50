@@ -1,4 +1,4 @@
-const CACHE='yasny-den-v22-rotation-week-20261123';
+const CACHE='yasny-den-v23-rounds-20261123';
 const ASSETS=['./','./index.html','./styles.css','./content.js','./studio.html','./app.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
