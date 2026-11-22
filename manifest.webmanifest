@@ -1,0 +1,25 @@
+{
+  "name": "Ясный день 50+ — тренировка памяти и внимания",
+  "short_name": "Ясный день",
+  "description": "Удобные занятия для памяти, внимания и мышления, упражнения на расслабление и короткие статьи.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F9F7F3",
+  "theme_color": "#765459",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
