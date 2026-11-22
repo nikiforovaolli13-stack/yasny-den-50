@@ -6,7 +6,8 @@
    именно эта программная реализация НЕ проходила клиническую проверку. */
 
 const STORE = 'yasny-den-v1'; // История старой версии — только для безопасного переноса
-const PROFILES_STORE = 'yasny-den-profiles-v1';
+const IS_PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+const PROFILES_STORE = IS_PREVIEW ? 'yasny-den-preview-profiles-v1' : 'yasny-den-profiles-v1';
 // Примерные по длительности планы. 20 минут — режим по умолчанию.
 // Ни длительность, ни наша конкретная программа не прошли клиническую валидацию.
 function buildPlan(minutes, date = new Date()) {
@@ -100,7 +101,7 @@ function loadProfiles(){
   }
  }catch(e){console.warn('Не удалось загрузить список участников',e)}
  // Если человек уже занимался в предыдущей версии, сохраняем его старую историю.
- try{const old=localStorage.getItem(STORE);if(old){const data=normalizeState(JSON.parse(old));return {activeId:'original-user',profiles:[{id:'original-user',name:'Мой профиль',data}]}}}catch(e){console.warn('Не удалось перенести старую историю',e)}
+ try{const old=IS_PREVIEW?null:localStorage.getItem(STORE);if(old){const data=normalizeState(JSON.parse(old));return {activeId:'original-user',profiles:[{id:'original-user',name:'Мой профиль',data}]}}}catch(e){console.warn('Не удалось перенести старую историю',e)}
  return {profiles:[],activeId:null};
 }
 function currentProfile(){return profileStore.profiles.find(p=>p.id===profileStore.activeId)||null}
@@ -236,9 +237,9 @@ function renderNeuroStep(){
  const g=game,step=NEURO_STEPS[g.round];
  return `<div class="neuro-guided"><span class="chip">${escapeText(step.kind)}</span><h2>${escapeText(step.name)}</h2><p class="muted">Ориентир: ${escapeText(step.duration)}</p><div class="neuro-instruction">${escapeText(step.instruction)}</div><div class="tip"><strong>Более простой вариант:</strong> ${escapeText(step.easier)}</div><p class="small muted">Попробуйте выполнить несколько повторений. Спешить не нужно. При дискомфорте остановитесь.</p>${btn(g.round===NEURO_STEPS.length-1?'Завершить нейрогимнастику':'Движение выполнено. Далее','next-neuro','full')}${btn('Посмотреть видео с упражнениями','neuro','secondary full topspace')}</div>`;
 }
-function renderArticles(){setMain(`<span class="eyebrow">Коротко и по делу</span><h1>Полезные статьи</h1><p class="lead">Чтение займёт около двух минут. В конце каждой статьи есть простая идея на сегодня.</p><div class="grid section">${ARTICLES.map(a=>`<article class="card article-card"><span class="chip">${a.category} · ${a.minutes} мин</span><h3>${a.title}</h3><p class="muted small">${a.paras[0].slice(0,125)}…</p>${btn('Прочитать','article','secondary',`data-id="${a.id}"`)}</article>`).join('')}</div>`)}
+function renderArticles(){setMain(`<span class="eyebrow">Коротко и по делу</span><h1>Полезные статьи</h1><p class="lead">Чтение займёт около двух минут. В конце каждой статьи есть простая идея на сегодня.</p><div class="grid section">${ARTICLES.map(a=>`<article class="card article-card"><span class="chip">${escapeText(a.category)} · ${a.minutes} мин</span><h3>${escapeText(a.title)}</h3><p class="muted small">${escapeText(a.paras[0].slice(0,125))}…</p>${btn('Прочитать','article','secondary',`data-id="${a.id}"`)}</article>`).join('')}</div>`)}
 let activeArticle = ARTICLES[0].id;
-function renderArticle(){const a=ARTICLES.find(x=>x.id===activeArticle)||ARTICLES[0];setMain(`<button class="back" data-action="nav" data-target="articles">← Все статьи</button><article class="main-content"><span class="eyebrow">${a.category}</span><h1>${a.title}</h1><div class="article-meta">Чтение: примерно ${a.minutes} минуты</div><div class="card article-text">${a.paras.map(p=>`<p>${p}</p>`).join('')}<div class="tip"><strong>Попробуйте сегодня</strong><p style="margin:8px 0 0">${a.tip}</p></div><hr class="divider"><p class="small"><strong>Источник:</strong> ${linkSource(a.source)}</p></div></article><div class="section">${btn('К другим статьям','articles','secondary')}</div>`)}
+function renderArticle(){const a=ARTICLES.find(x=>x.id===activeArticle)||ARTICLES[0];setMain(`<button class="back" data-action="nav" data-target="articles">← Все статьи</button><article class="main-content"><span class="eyebrow">${escapeText(a.category)}</span><h1>${escapeText(a.title)}</h1><div class="article-meta">Чтение: примерно ${a.minutes} минуты</div><div class="card article-text">${a.paras.map(p=>`<p>${escapeText(p)}</p>`).join('')}<div class="tip"><strong>Попробуйте сегодня</strong><p style="margin:8px 0 0">${escapeText(a.tip)}</p></div><hr class="divider"><p class="small"><strong>Источник:</strong> ${linkSource(a.source)}</p></div></article><div class="section">${btn('К другим статьям','articles','secondary')}</div>`)}
 function renderProgress(){
  const today=new Date(),days=[];for(let i=6;i>=0;i--){const d=new Date(today.getFullYear(),today.getMonth(),today.getDate()-i);days.push({d,key:dateKey(d),done:state.history.some(h=>h.date===dateKey(d))})}
  const total=state.history.reduce((s,h)=>s+h.total,0),week=days.filter(x=>x.done).length;

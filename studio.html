@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="color-scheme" content="light"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Редактор игр — Ясный день 50+</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#29343b;background:#f8f6f3;font-size:17px;line-height:1.5;--accent:#765459;--dark:#29343b;--border:#ded8d3;--cream:#f8f6f3;--card:#fffdfb}
+*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #aa6d73;outline-offset:3px}a{color:#765459}h1,h2,h3,p{margin:0}h1{font-size:1.5rem;line-height:1.2}h2{font-size:1.4rem}h3{font-size:1.05rem}p{line-height:1.55}header{position:sticky;top:0;z-index:10;background:#fffdfb;border-bottom:1px solid var(--border);box-shadow:0 3px 15px #413b3410}.top{max-width:1420px;margin:auto;padding:15px 22px;display:flex;align-items:center;gap:18px;justify-content:space-between;flex-wrap:wrap}.logo{display:flex;align-items:center;gap:12px}.mark{width:42px;height:42px;border-radius:14px;background:var(--accent);display:grid;place-items:center;color:white;font-size:26px}.sub{color:#657079;font-size:.86rem}.actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}.button{border:1px solid var(--border);background:white;color:var(--dark);border-radius:12px;padding:11px 15px;font-weight:700;min-height:45px}.button.primary{background:var(--accent);border-color:var(--accent);color:white}.button.soft{background:#f3eae7}.button.warn{color:#913b35;border-color:#e5c6c1}.button:hover{filter:brightness(.97)}main{max-width:1420px;margin:24px auto;padding:0 20px;display:grid;grid-template-columns:245px minmax(400px,1fr) minmax(275px,335px);gap:18px;align-items:start}.panel{border:1px solid var(--border);background:var(--card);border-radius:20px;padding:20px;box-shadow:0 5px 16px #36312a0a}.sidebar{position:sticky;top:100px;max-height:calc(100vh - 115px);overflow-y:auto}.sidebar h2{font-size:1rem;margin:0 0 12px}.group{padding:10px 12px;border:0;background:transparent;border-radius:12px;width:100%;text-align:left;color:var(--dark);font-weight:650;margin:2px 0;display:flex;justify-content:space-between;gap:10px;align-items:center}.group.selected{background:#eee4e1;color:#69474e}.counter{background:#fff6f3;border:1px solid #e9d9d5;padding:1px 7px;border-radius:8px;font-size:.75rem}.group.selected .counter{background:white}.topline{display:flex;align-items:start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}.desc{color:#5d6971;max-width:65ch;font-size:.95rem;margin-top:6px}.entry-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:16px 0 18px}.entry-tools select{flex:1;min-width:190px;max-width:100%;padding:12px 13px;border:1.5px solid #c9c1bc;background:white;border-radius:11px}.field{display:block;margin:15px 0}.field label{display:block;font-weight:750;font-size:.92rem;margin-bottom:5px}.field small{display:block;color:#617079;margin-top:5px;font-size:.8rem}.field input,.field textarea{width:100%;border:1.5px solid #c8c4bf;border-radius:12px;padding:12px 13px;background:white;color:var(--dark);line-height:1.5}.field textarea{resize:vertical;min-height:80px}.field textarea.rows{min-height:115px}.field textarea.paras{min-height:195px}.hint{font-size:.83rem;color:#596970}.status{font-size:.82rem;color:#576a62;margin-left:auto}.status.warning{color:#9d453b}.preview-panel{position:sticky;top:100px}.mini{border-radius:17px;background:#f4eee9;padding:17px;margin-top:15px;border:1px solid #e9dcd5}.mini span.tag{display:inline-block;background:#fffdfb;color:#745358;border-radius:9px;padding:4px 8px;font-size:.8rem;font-weight:700;margin-bottom:10px}.mini h3{font-size:1.1rem;line-height:1.35;margin-bottom:12px}.mini .choice{border:1px solid #ded1c9;border-radius:10px;margin:6px 0;padding:9px;background:white;font-size:.9rem}.mini .correct{background:#eaf2ea;border-color:#b9d1b9}.mini p{margin:8px 0;font-size:.9rem}.callout{background:#faf2e7;border:1px solid #e8d5b9;border-radius:14px;padding:14px;margin:12px 0;font-size:.89rem}.callout b{display:block;margin-bottom:4px}.footer-note{font-size:.8rem;color:#68727b;margin-top:15px}.stages{margin-top:16px;display:grid;gap:10px}.stages a,.stages button{width:100%;text-align:center}.entryempty{padding:45px 10px;text-align:center;color:#6b7277}.notify{position:fixed;right:20px;bottom:20px;padding:13px 18px;border-radius:12px;background:#263d34;color:white;max-width:350px;box-shadow:0 8px 26px #1114;display:none;z-index:30}.notify.visible{display:block}ol{padding-left:22px}li{margin:6px 0}strong{font-weight:780}@media(max-width:1120px){main{grid-template-columns:210px minmax(320px,1fr)}.preview-panel{position:static;grid-column:2}.sidebar{top:95px}}@media(max-width:720px){main{display:block;padding:0 12px;margin:12px auto}.sidebar,.preview-panel{position:static;max-height:none;margin-bottom:14px}.sidebar .groups{display:grid;grid-template-columns:1fr 1fr;gap:4px}.panel{padding:16px;margin-bottom:14px}.group{padding:10px 7px;font-size:.87rem}.top{padding:12px}.actions{width:100%}.actions .button{flex:1;padding:10px}.entry-tools select{width:100%;flex-basis:100%}.preview-panel{display:block}.status{width:100%}h1{font-size:1.25rem}}
+</style>
+<script src="./content.js" defer></script>
+<script defer>
+'use strict';
+const KEY='yasny-editor-draft-v1';
+const CATALOG={
+WORD_POOLS:{name:'Запоминание слов',desc:'Каждая строка — одно слово. Один список используется в одном раунде.',kind:'list',fields:[['items','Слова','lines','Минимум 8 разных слов; лучше 12.']]},
+FOCUS_POOLS:{name:'Найди и сосчитай',desc:'Первое слово — искомое, остальные — похожие отвлекающие.',kind:'list',fields:[['items','Слова','lines','Нужно 4 или больше: первое — цель.']]},
+SEQ_POOLS:{name:'Вспомни порядок',desc:'Наборы для запоминания последовательности.',kind:'list',fields:[['items','Слова','lines','Минимум 5 разных слов.']]},
+LOGIC:{name:'Логические ряды',desc:'Варианты ответов и объяснение правильного решения.',kind:'object',fields:[['q','Задание','text'],['choices','Варианты ответов','lines','Каждый ответ — с новой строки, минимум два.'],['answer','Правильный ответ','text','В точности как один из вариантов.'],['why','Объяснение','textarea']]},
+EVERYDAY:{name:'Задачи из жизни',desc:'Небольшие бытовые задачи без давления времени.',kind:'object',fields:[['q','Вопрос','textarea'],['choices','Варианты ответов','lines'],['answer','Правильный ответ','text'],['why','Объяснение','textarea']]},
+ASSOCIATIONS:{name:'Три подсказки',desc:'Три ассоциации, четыре возможных ответа.',kind:'object',fields:[['clues','Подсказки','lines','Желательно ровно три.'],['choices','Варианты ответов','lines'],['answer','Правильный ответ','text'],['why','Объяснение','textarea']]},
+SPEECH_PROMPTS:{name:'Подбери слова',desc:'Участник называет или записывает слова по заданной теме.',kind:'object',fields:[['title','Название задания','text'],['hint','Пояснение','textarea'],['sample','Пример','textarea']]},
+PLANNING_TASKS:{name:'Планирование',desc:'Три действия должны быть записаны сразу в правильном порядке.',kind:'object',fields:[['q','Ситуация','textarea'],['steps','Правильный порядок действий','lines','Каждое действие с новой строки, минимум три.'],['why','Объяснение','textarea']]},
+ARTICLES:{name:'Полезные статьи',desc:'Короткие статьи для чтения в приложении.',kind:'object',fields:[['id','Уникальный ID (латиница)','text'],['category','Раздел','text'],['minutes','Время чтения в минутах','number'],['title','Заголовок','text'],['source','Код источника','text','Например who, nia, rusmanual. Используй существующий код источника.'],['paras','Абзацы статьи','paragraphs','Отделяйте абзацы пустой строкой.'],['tip','Совет в конце','textarea']]},
+NEURO_VIDEOS:{name:'Видео нейрогимнастики',desc:'Используются ссылки на оригинальные видеоплееры, не копии чужих роликов.',kind:'object',fields:[['id','Уникальный ID (латиница)','text'],['name','Название','text'],['author','Автор / канал','text'],['provider','Платформа','text'],['length','Продолжительность','text'],['desc','Описание','textarea'],['url','Ссылка на оригинал','text','Ссылка должна начинаться с https://'],['embed','Ссылка для встраивания','text','Используй адрес встраивания, предоставленный платформой.']]},
+NEURO_STEPS:{name:'Движения рук',desc:'Пошаговые движения и более простой вариант.',kind:'object',fields:[['name','Название','text'],['duration','Примерная длительность','text'],['kind','Что тренируем','text'],['instruction','Инструкция','textarea'],['easier','Упрощённый вариант','textarea']]}
+};
+const toText=v=>v==null?'':typeof v==='string'?v:String(v);
+const htmlEscape=x=>toText(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone=v=>JSON.parse(JSON.stringify(v));
+let published, content, selectedType='LOGIC', selectedIndex=0, statusTimer;
+const $=id=>document.getElementById(id);
+function inform(msg,problem=false){const el=$('notify');el.textContent=msg;el.style.background=problem?'#894b42':'#263d34';el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),2600)}
+function restoreDraft(){try{const val=JSON.parse(localStorage.getItem(KEY)||'null');return val&&typeof val==='object'&&Object.keys(CATALOG).every(k=>Array.isArray(val[k]))?val:null}catch{return null}}
+function saveDraft(){try{localStorage.setItem(KEY,JSON.stringify(content));$('status').textContent='Черновик сохранён в этом браузере';$('status').classList.remove('warning')}catch(e){$('status').textContent='Не удалось сохранить черновик. Скачай файл.';$('status').classList.add('warning')}}
+function markSaved(){clearTimeout(statusTimer);$('status').textContent='Сохранение…';statusTimer=setTimeout(saveDraft,300)}
+function humanItem(item,idx,type){if(Array.isArray(item))return `${idx+1}. ${item.slice(0,3).join(' · ')}${item.length>3?'…':''}`;return `${idx+1}. ${item.title||item.q||item.name||item.clues?.join(' + ')||'Задание'}`.slice(0,80)}
+function listTypes(){const list=$('groups');list.innerHTML=Object.keys(CATALOG).map(k=>`<button class="group ${k===selectedType?'selected':''}" data-type="${k}" type="button">${htmlEscape(CATALOG[k].name)} <span class="counter">${content[k].length}</span></button>`).join('');list.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedType=b.dataset.type;selectedIndex=0;renderAll()}))}
+function getItems(){return content[selectedType]}
+function renderEntryList(){let a=getItems();if(selectedIndex>=a.length)selectedIndex=Math.max(0,a.length-1);$('entry-select').innerHTML=a.map((x,i)=>`<option value="${i}">${htmlEscape(humanItem(x,i,selectedType))}</option>`).join('');$('entry-select').value=String(selectedIndex);$('empty').hidden=a.length!==0;$('fields').hidden=a.length===0;$('delete').disabled=a.length<=1;$('duplicate').disabled=a.length===0}
+function fieldText(v,kind){if(kind==='paragraphs')return Array.isArray(v)?v.join('\n\n'):toText(v);if(kind==='lines')return Array.isArray(v)?v.join('\n'):toText(v);return toText(v)}
+function renderFields(){const schema=CATALOG[selectedType],row=getItems()[selectedIndex];$('fields').innerHTML='';if(!row)return;for(const [name,label,kind,hint] of schema.fields){let v=schema.kind==='list'?row:row[name];const container=document.createElement('div');container.className='field';let l=document.createElement('label');l.textContent=label;let ctl=document.createElement(kind==='textarea'||kind==='lines'||kind==='paragraphs'?'textarea':'input');ctl.id='field-'+name;l.htmlFor=ctl.id;container.appendChild(l);if(ctl.tagName==='TEXTAREA'){ctl.className=kind==='paragraphs'?'paras':kind==='lines'?'rows':'';ctl.rows=kind==='paragraphs'?9:kind==='lines'?5:3}else{ctl.type=kind==='number'?'number':'text';if(kind==='number')ctl.min='1'}ctl.value=fieldText(v,kind);ctl.addEventListener('input',()=>{let newVal=ctl.value;if(kind==='lines')newVal=newVal.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(kind==='paragraphs')newVal=newVal.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);if(kind==='number')newVal=Math.max(1,Number(newVal)||1);if(schema.kind==='list')getItems()[selectedIndex]=newVal;else getItems()[selectedIndex][name]=newVal;markSaved();renderMini();});container.appendChild(ctl);if(hint){let el=document.createElement('small');el.textContent=hint;container.appendChild(el)}$('fields').appendChild(container)}}
+function renderMini(){const typ=selectedType,rec=getItems()[selectedIndex],host=$('mini');if(!rec){host.innerHTML='<p>Добавьте первое задание.</p>';return}let h=`<span class="tag">${htmlEscape(CATALOG[typ].name)}</span>`;if(Array.isArray(rec)){h+=`<h3>${typ==='FOCUS_POOLS'?'Найдите первый элемент':'Запомните слова'}</h3><div>${rec.map((x,i)=>`<div class="choice">${typ==='FOCUS_POOLS'&&i===0?'Цель: ':''}${htmlEscape(x)}</div>`).join('')}</div>`}
+else if(rec.choices){h+=`<h3>${htmlEscape(rec.q||rec.clues?.join(' · ')||'Какой вариант подходит?')}</h3>${rec.choices.map(c=>`<div class="choice ${c===rec.answer?'correct':''}">${htmlEscape(c)}</div>`).join('')}<p class="hint">Правильный ответ выделен только в редакторе.</p>`}
+else if(rec.steps){h+=`<h3>${htmlEscape(rec.q)}</h3>${rec.steps.map((step,i)=>`<div class="choice">${i+1}. ${htmlEscape(step)}</div>`).join('')}`}
+else if(rec.paras){h+=`<h3>${htmlEscape(rec.title)}</h3>${rec.paras.slice(0,2).map(p=>`<p>${htmlEscape(p)}</p>`).join('')}`}
+else{h+=`<h3>${htmlEscape(rec.title||rec.name||'Новое упражнение')}</h3><p>${htmlEscape(rec.hint||rec.desc||rec.instruction||'Заполните поля слева.')}</p>`}host.innerHTML=h}
+function renderAll(){const cfg=CATALOG[selectedType];$('section-title').textContent=cfg.name;$('section-desc').textContent=cfg.desc;listTypes();renderEntryList();renderFields();renderMini()}
+function newRow(type){let arr=content[type];if(!arr.length){if(CATALOG[type].kind==='list')return ['новое слово','ещё слово','третье слово','четвёртое слово','пятое слово','шестое слово','седьмое слово','восьмое слово'];const o={};for(const [n,,kind] of CATALOG[type].fields)o[n]=kind==='lines'||kind==='paragraphs'?[]:kind==='number'?2:'';if('id' in o)o.id='new-'+Math.random().toString(36).slice(2,8);return o}const v=clone(arr[arr.length-1]);if(CATALOG[type].kind==='list')return v;if('id' in v)v.id='new-'+Math.random().toString(36).slice(2,8);if('title' in v)v.title='Новое: '+v.title;if('name' in v)v.name='Новое: '+v.name;if('q' in v)v.q='Новое: '+v.q;return v}
+function readErrors(){
+ let problems=[];
+ for(const type of Object.keys(CATALOG)){
+  const a=content[type];
+  if(!Array.isArray(a)||!a.length){problems.push(`${CATALOG[type].name}: нет заданий`);continue;}
+  for(let i=0;i<a.length;i++){
+   const o=a[i],ref=`${CATALOG[type].name} №${i+1}`;
+   if(Array.isArray(o)){
+    const min=type==='FOCUS_POOLS'?4:type==='WORD_POOLS'?8:5;
+    if(o.length<min)problems.push(`${ref}: минимум ${min} слов`);
+    if(new Set(o).size!==o.length)problems.push(`${ref}: повторяются слова`);
+    continue;
+   }
+   for(const [key,label] of CATALOG[type].fields){
+    const v=o[key];
+    if(v===undefined||v===null||(typeof v==='string'&&!v.trim())||(Array.isArray(v)&&!v.length))problems.push(`${ref}: заполните «${label}»`);
+   }
+   if(o.choices){
+    if(o.choices.length<2)problems.push(`${ref}: минимум два ответа`);
+    if(!o.choices.includes(o.answer))problems.push(`${ref}: правильный ответ не совпадает с вариантами`);
+   }
+   if(type==='ASSOCIATIONS'&&o.clues.length!==3)problems.push(`${ref}: нужно ровно три подсказки`);
+   if(type==='PLANNING_TASKS'&&o.steps.length<3)problems.push(`${ref}: минимум три действия`);
+   if(type==='NEURO_VIDEOS'&&(!/^https:\/\//.test(o.url)||!/^https:\/\//.test(o.embed)))problems.push(`${ref}: ссылки должны начинаться с https://`);
+   if(['ARTICLES','NEURO_VIDEOS'].includes(type)&&!/^[a-z0-9_-]+$/i.test(o.id))problems.push(`${ref}: ID может содержать только латиницу, цифры, - или _`);
+   if(type==='ARTICLES'&&!['dual','who','rus','rusmanual','active','review','nhs','breath','nia','pointer','nice','wcag','nih'].includes(o.source))problems.push(`${ref}: неизвестный код источника`);
+  }
+  if(['ARTICLES','NEURO_VIDEOS'].includes(type)){
+   const ids=a.map(v=>v.id);
+   if(new Set(ids).size!==ids.length)problems.push(`${CATALOG[type].name}: повторяются ID`);
+  }
+ }
+ return problems;
+}
+function checkContent(){const errs=readErrors();$('errors').hidden=!errs.length;$('errors').innerHTML=errs.length?`<b>Нужно поправить перед публикацией (${errs.length}):</b><ol>${errs.slice(0,18).map(e=>`<li>${htmlEscape(e)}</li>`).join('')}${errs.length>18?`<li>И ещё ${errs.length-18}…</li>`:''}</ol>`:'<b>Всё заполнено корректно.</b>';return errs.length===0}
+function exportedContent(){return `/* Материалы приложения «Ясный день 50+». Создано редактором studio.html. */\n(function(){\n  const published = ${JSON.stringify(content,null,2)};\n  let current = published;\n  if (new URLSearchParams(location.search).get('preview') === '1') {\n    try {\n      const draft = JSON.parse(localStorage.getItem('yasny-editor-draft-v1') || 'null');\n      if (draft && typeof draft === 'object' && Array.isArray(draft.LOGIC) && Array.isArray(draft.NEURO_VIDEOS)) current = draft;\n    } catch (e) { console.warn('Не удалось загрузить черновик', e); }\n  }\n  window.YASNY_CONTENT = current;\n})();\n`}
+function download(filename,str,mime){const blob=new Blob([str],{type:mime});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+document.addEventListener('DOMContentLoaded',()=>{
+  if(!window.YASNY_CONTENT){document.body.innerHTML='<h1 style="padding:35px">Не загружен content.js. Положите studio.html рядом с content.js.</h1>';return}
+  published=clone(window.YASNY_CONTENT);content=restoreDraft()||clone(published);renderAll();$('status').textContent=restoreDraft()?'Найден сохранённый черновик':'Пока без изменений';
+  $('entry-select').addEventListener('change',e=>{selectedIndex=Number(e.target.value);renderFields();renderMini()});
+  $('add').onclick=()=>{getItems().push(newRow(selectedType));selectedIndex=getItems().length-1;markSaved();renderAll();inform('Задание добавлено — отредактируйте поля')};
+  $('duplicate').onclick=()=>{getItems().splice(selectedIndex+1,0,clone(getItems()[selectedIndex]));selectedIndex++;let rec=getItems()[selectedIndex];if(!Array.isArray(rec)&&'id'in rec)rec.id='copy-'+Math.random().toString(36).slice(2,8);markSaved();renderAll();inform('Создана копия задания')};
+  $('delete').onclick=()=>{if(getItems().length<=1)return inform('В этой категории нужно оставить хотя бы одно задание',true);if(!confirm('Удалить это задание из черновика?'))return;getItems().splice(selectedIndex,1);selectedIndex=Math.max(0,selectedIndex-1);markSaved();renderAll()};
+  $('save').onclick=()=>{clearTimeout(statusTimer);saveDraft();inform('Черновик сохранён на этом устройстве')};
+  $('check').onclick=()=>{if(checkContent())inform('Проверка пройдена. Можно открыть предпросмотр.')};
+  $('preview').onclick=()=>{saveDraft();window.open('./index.html?preview=1','_blank','noopener')};
+  $('download').onclick=()=>{saveDraft();if(!checkContent())return inform('Исправьте замечания в блоке проверки',true);download('content.js',exportedContent(),'text/javascript;charset=utf-8');inform('Файл content.js скачан. Загрузите его на GitHub.')};
+  $('reset').onclick=()=>{if(!confirm('Удалить локальный черновик и вернуть материалы из опубликованного content.js?'))return;content=clone(published);localStorage.removeItem(KEY);selectedIndex=0;renderAll();$('status').textContent='Черновик сброшен'};
+});
+</script>
+</head>
+<body>
+<header><div class="top"><div class="logo"><div class="mark" aria-hidden="true">✳</div><div><h1>Редактор игр</h1><p class="sub">Ясный день 50+ · материал и задания</p></div></div><div class="actions"><button class="button" id="save" type="button">Сохранить черновик</button><button class="button" id="check" type="button">Проверить</button><button class="button primary" id="download" type="button">Скачать обновление</button></div><div class="status" id="status" aria-live="polite">Загрузка…</div></div></header>
+<main>
+<aside class="panel sidebar"><h2>Разделы</h2><div class="groups" id="groups"></div><div class="callout"><b>Как устроено сохранение</b>Изменения в редакторе видны только тебе, пока не загрузишь обновлённый файл на GitHub.</div></aside>
+<section class="panel"><div class="topline"><div><h2 id="section-title"></h2><p class="desc" id="section-desc"></p></div></div><div class="entry-tools"><select aria-label="Выберите задание" id="entry-select"></select><button class="button" id="add" type="button">+ Добавить</button><button class="button" id="duplicate" type="button">Копировать</button><button class="button warn" id="delete" type="button">Удалить</button></div><div id="empty" class="entryempty" hidden>Здесь пока нет заданий. Нажмите «Добавить».</div><div id="fields"></div><div id="errors" class="callout" hidden aria-live="polite"></div></section>
+<aside class="panel preview-panel"><h2>Как выглядит задание</h2><p class="hint">Ниже — быстрый просмотр текста. Проверить настоящий игровой экран можно отдельной кнопкой.</p><div class="mini" id="mini"></div><div class="stages"><button class="button soft" id="preview" type="button">▶ Тестировать в приложении</button><a class="button" href="./index.html" target="_blank" rel="noopener">Открыть обычное приложение</a></div><div class="callout"><b>Публикация обновления</b>1. Нажми «Скачать обновление».<br/>2. На GitHub замени файл <code>content.js</code> скачанным.<br/>3. Нажми <strong>Commit changes</strong>. Участники увидят новую версию.</div><p class="footer-note">Предпросмотр создаёт отдельные тестовые профили и не меняет прогресс настоящих участников. Страница редактора публично доступна по ссылке, но не даёт никому прав изменять файлы GitHub.</p><button class="button warn" id="reset" type="button" style="width:100%;margin-top:14px">Сбросить черновик</button></aside>
+</main><div id="notify" class="notify" role="status" aria-live="polite"></div>
+</body>
+</html>
