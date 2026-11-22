@@ -19,7 +19,7 @@ function buildPlan(minutes, date = new Date()) {
 }
 const EXERCISES = {
   picturepairs: {name:'Найди пару',icon:'▧',label:'Зрительная память',time:'3–5 мин',desc:'Открывайте карточки с фотографиями и ищите одинаковые пары.',source:'review'},
-  picturefind: {name:'Найди такую же картинку',icon:'▣',label:'Зрительное внимание',time:'2–4 мин',desc:'Рассмотрите фотографию и найдите такую же среди нескольких изображений.',source:'review'},
+  picturefind: {name:'Запомни и найди картинку',icon:'▣',label:'Зрительная память',time:'2–4 мин',desc:'Сначала запомните одну фотографию. Когда она исчезнет, найдите её среди других.',source:'review'},
   words:    {name:'Запомните слова', icon:'✦',label:'Память',time:'3–5 мин',desc:'Запоминайте слова и узнавайте их среди других.',source:'active'},
   focus:    {name:'Найдите и сосчитайте',icon:'◎',label:'Внимание',time:'2–4 мин',desc:'Ищите нужное слово среди похожих.',source:'review'},
   sequence: {name:'Вспомните порядок',icon:'☷',label:'Рабочая память',time:'3–5 мин',desc:'Запоминайте последовательность и повторяйте её.',source:'review'},
@@ -44,7 +44,28 @@ const EVERYDAY = window.YASNY_CONTENT.EVERYDAY;
 const ASSOCIATIONS = window.YASNY_CONTENT.ASSOCIATIONS;
 const SPEECH_PROMPTS = window.YASNY_CONTENT.SPEECH_PROMPTS;
 const PLANNING_TASKS = window.YASNY_CONTENT.PLANNING_TASKS;
-const PICTURE_SETS = window.YASNY_CONTENT.PICTURE_SETS || [];
+// Отдельные галереи для двух разных упражнений. Старые опубликованные фото продолжают работать.
+const PICTURE_PAIR_SETS = window.YASNY_CONTENT.PICTURE_PAIR_SETS || window.YASNY_CONTENT.PICTURE_SETS || [];
+const PICTURE_MEMORY_SETS = window.YASNY_CONTENT.PICTURE_MEMORY_SETS || window.YASNY_CONTENT.PICTURE_SETS || [];
+let photoStudyTimer=null;
+function clearPhotoStudyTimer(){if(photoStudyTimer!==null){clearInterval(photoStudyTimer);photoStudyTimer=null}}
+function startPhotoStudyTimer(g){
+ clearPhotoStudyTimer();
+ const sec=Number(g.record.studySeconds);
+ if(!Number.isFinite(sec)||sec<=0||g.phase!=='show')return;
+ let remaining=sec;
+ const el=document.getElementById('picture-countdown');
+ if(el)el.textContent=String(remaining);
+ photoStudyTimer=setInterval(()=>{
+  if(game!==g||view!=='exercise'||g.phase!=='show'){clearPhotoStudyTimer();return}
+  if(document.hidden)return; // Не сокращаем время, пока вкладка скрыта
+  remaining--;
+  const clock=document.getElementById('picture-countdown');
+  if(clock)clock.textContent=String(Math.max(0,remaining));
+  if(remaining<=0){clearPhotoStudyTimer();g.phase='answer';renderGame()}
+ },1000);
+}
+
 const SYMBOL_TYPES=['●','▲','◆','■','★','✚'];
 
 const SOURCES = {
@@ -188,7 +209,7 @@ function dateKey(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).
 function dayLabel(d){return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long'})}
 function focusMain(){const h=main.querySelector('h1');if(h){h.tabIndex=-1;h.focus({preventScroll:true})}}
 function applyFont(){document.documentElement.style.setProperty('--font-size',([20,22,24][state.font]||20)+'px')}
-function setView(name){stopBreathing();view=name;game=null;render();window.scrollTo({top:0,behavior:'instant'});focusMain()}
+function setView(name){stopBreathing();clearPhotoStudyTimer();view=name;game=null;render();window.scrollTo({top:0,behavior:'instant'});focusMain()}
 function setMain(html){const profile=currentProfile();const switcher=profile&&view!=='profiles'?`<div class="profile-switch"><span>Занимается: <strong>${escapeText(profile.name)}</strong></span><button class="profile-switch-btn" data-action="profiles" type="button">Сменить участника</button></div>`:'';main.innerHTML=switcher+html;document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.target===view || (view==='exercise'&&b.dataset.target==='library') || (view==='article'&&b.dataset.target==='articles')));document.title=`${({home:'Главная',library:'Упражнения',neuro:'Нейрогимнастика',articles:'Статьи',progress:'Мои занятия',settings:'Настройки',exercise:'Задание',article:'Статья',between:'Следующее задание',finished:'Занятие завершено',profiles:'Участники'})[view]||'Ясный день'} — Ясный день 50+`}
 function btn(label,action,cls='',extra=''){return `<button type="button" class="btn ${cls}" data-action="${action}" ${extra}>${label}</button>`}
 function linkSource(key){const s=SOURCES[key];return `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeText(s.name)}</a>`}
@@ -259,11 +280,11 @@ function renderSettings(){setMain(`<span class="eyebrow">Настройте по
  <section class="card section"><h2>О приложении</h2><p>«Ясный день» создан для спокойных занятий на память, внимание, мышление и координацию. В основе упражнений лежат направления, которые изучают специалисты. Сама эта версия приложения ещё не проходила отдельную научную проверку эффективности.</p><p>Материалы носят информационный характер и не заменяют консультацию специалиста. Если изменения памяти или самочувствия заметно мешают привычной жизни, лучше обсудить их с врачом.</p><h3>Научные и методические источники</h3><ul class="source-list">${Object.keys(SOURCES).map(k=>`<li>${linkSource(k)}</li>`).join('')}</ul></section>`)}
 function startSession(restart=false){if(state.session && !restart){resumeSession();return}state.dailyDraft=null;state.session={mode:state.mode,plan:buildPlan(state.mode),position:0,startedAt:Date.now(),results:[]};save();resumeSession()}
 function resumeSession(){const s=state.session;if(!s){setView('home');return}if(s.position>=s.plan.length){completeSession();return}const draft=state.dailyDraft;if(validDraft(draft)&&draft.daily&&draft.type===s.plan[s.position]){game=draft;view='exercise';renderGame();window.scrollTo({top:0,behavior:'instant'});focusMain();return}startGame(s.plan[s.position],true)}
-function startGame(type,daily){if(!EXERCISES[type])return;stopBreathing();if(daily)state.dailyDraft=null;else state.soloDraft=null;game={type,daily,round:0,phase:'',correct:0,selected:[],answers:[],record:null,used:[]};view='exercise';generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'});focusMain()}
-function generateRound(){const g=game;g.selected=[];g.feedback='';g.why='';g.correctAnswer='';
+function startGame(type,daily){if(!EXERCISES[type])return;stopBreathing();clearPhotoStudyTimer();if(daily)state.dailyDraft=null;else state.soloDraft=null;game={type,daily,round:0,phase:'',correct:0,selected:[],answers:[],record:null,used:[]};view='exercise';generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'});focusMain()}
+function generateRound(){clearPhotoStudyTimer();const g=game;g.selected=[];g.feedback='';g.why='';g.correctAnswer='';
  switch(g.type){
  case 'picturepairs': {
-  const usable=PICTURE_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=4);
+  const usable=PICTURE_PAIR_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=2);
   if(!usable.length){g.record={setIndex:-1,tiles:[],opened:[],matched:[],attempts:0};g.phase='answer';break;}
   const chosen=pick(usable);const count=Math.min(Math.max(2,Math.min(5,Number(chosen.s.pairs)||3)),chosen.s.images.filter(x=>x.src).length);
   const indices=shuffle(chosen.s.images.map((_,i)=>i).filter(i=>chosen.s.images[i].src)).slice(0,count);
@@ -271,11 +292,13 @@ function generateRound(){const g=game;g.selected=[];g.feedback='';g.why='';g.cor
   g.record={setIndex:chosen.i,tiles,opened:[],matched:[],attempts:0};g.phase='answer';break;
  }
  case 'picturefind': {
-  const usable=PICTURE_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=4);
+  const usable=PICTURE_MEMORY_SETS.map((s,i)=>({s,i})).filter(({s})=>s.images&&s.images.filter(x=>x.src).length>=3);
   if(!usable.length){g.record={setIndex:-1,options:[],target:-1};g.phase='answer';break;}
   const chosen=pick(usable),valid=chosen.s.images.map((_,i)=>i).filter(i=>chosen.s.images[i].src);
   const target=pick(valid),options=shuffle([target,...shuffle(valid.filter(i=>i!==target)).slice(0,Math.min(Math.max(2,Math.min(5,(Number(chosen.s.findOptions)||5)-1)),valid.length-1))]);
-  g.record={setIndex:chosen.i,target,options};g.phase='answer';break;
+  const sec=Number(chosen.s.studySeconds);
+  const studySeconds=[0,10,15,20,30].includes(sec)?sec:15;
+  g.record={setIndex:chosen.i,target,options,studySeconds};g.phase='show';break;
  }
  case 'words': {const pool=pick(WORD_POOLS),n=4+(state.font===2?0:Math.min(2,g.round));const words=shuffle(pool).slice(0,n);g.record={words,options:shuffle([...words,...shuffle(pool.filter(w=>!words.includes(w))).slice(0,Math.min(6,12-n))])};g.phase='show';break}
  case 'focus': {const pool=pick(FOCUS_POOLS),n=3+(g.round%3),target=pool[0];const cells=shuffle([...Array(n).fill(target),...Array.from({length:16-n},()=>pick(pool.slice(1)))]);g.record={cells,target,count:n};g.phase='answer';break}
@@ -291,14 +314,19 @@ function generateRound(){const g=game;g.selected=[];g.feedback='';g.why='';g.cor
  case 'neuro': {g.phase='ready';g.record={};break}
  }
 }
-function renderGame(){if(!game){setView('library');return}const g=game,e=EXERCISES[g.type],total=MAX_ROUNDS[g.type],cur=Math.min(g.round+1,total);let content='';
+function renderGame(){clearPhotoStudyTimer();if(!game){setView('library');return}const g=game,e=EXERCISES[g.type],total=MAX_ROUNDS[g.type],cur=Math.min(g.round+1,total);let content='';
  if(g.type==='picturepairs'){
-  const r=g.record,photos=PICTURE_SETS[r.setIndex]?.images||[];
+  const r=g.record,photos=PICTURE_PAIR_SETS[r.setIndex]?.images||[];
   content=photos.length?`<p class="hint">Нажимайте на карточки по две. Постарайтесь найти одинаковые фотографии. Если не совпали, следующий выбор закроет их.</p><p class="small muted">Найдено пар: ${r.matched.length} из ${r.tiles.length/2}. Без таймера.</p><div class="photo-pairs-grid">${r.tiles.map((t,i)=>{const open=r.opened.includes(i)||r.matched.includes(t.key);const photo=photos[t.image];return `<button type="button" class="photo-tile ${open?'open':''} ${r.matched.includes(t.key)?'matched':''}" data-action="picture-open" data-index="${i}" aria-label="${open?escapeText(photo.name):`Закрытая карточка ${i+1}`} " ${g.phase==='feedback'||r.matched.includes(t.key)?'disabled':''}>${open?`<img alt="${escapeText(photo.name)}" src="${escapeText(photo.src)}"/>`:'<span aria-hidden="true">?</span>'}</button>`}).join('')}</div>`:'<p class="banner">Добавьте фотографии через редактор игр, чтобы запустить это задание.</p>';
  }
  if(g.type==='picturefind'){
-  const r=g.record,photos=PICTURE_SETS[r.setIndex]?.images||[];
-  content=photos.length?`<p class="hint">Рассмотрите образец. Какая из картинок ниже точно такая же?</p><div class="photo-target"><img src="${escapeText(photos[r.target].src)}" alt="Образец: ${escapeText(photos[r.target].name)}"/><span>ОБРАЗЕЦ</span></div><div class="photo-find-grid">${r.options.map((idx,i)=>`<button type="button" class="photo-choice" data-action="picture-answer" data-index="${idx}" aria-label="Вариант ${i+1}: ${escapeText(photos[idx].name)}" ${g.phase==='feedback'?'disabled':''}><img src="${escapeText(photos[idx].src)}" alt="Вариант ${i+1}"/></button>`).join('')}</div>`:'<p class="banner">Добавьте фотографии через редактор игр, чтобы запустить это задание.</p>';
+  const r=g.record,photos=PICTURE_MEMORY_SETS[r.setIndex]?.images||[];
+  if(!photos.length||!photos[r.target]) content='<p class="banner">Для этой игры нужны фотографии. Добавьте их в редакторе «Запомни и найди картинку».</p>';
+  else if(g.phase==='show') content=`<p class="hint">Шаг 1 из 2. Внимательно рассмотрите фотографию и запомните её. Затем образец исчезнет.</p><div class="photo-target"><img src="${escapeText(photos[r.target].src)}" alt="Фотография для запоминания"/><span>ЗАПОМНИТЕ ЭТУ ФОТОГРАФИЮ</span></div>${r.studySeconds>0?`<p class="photo-memory-timer">Картинка исчезнет через <strong id="picture-countdown">${r.studySeconds}</strong> сек.</p>`:'<p class="small muted">Картинка останется, пока не нажмёте кнопку.</p>'}${btn('Я запомнил(а). Показать варианты','picture-memorized','full topspace')}`;
+  else {
+   content=`<p class="hint">Шаг 2 из 2. Образец скрыт. Вспомните, какую фотографию видели, и найдите её среди вариантов.</p><div class="photo-find-grid">${r.options.map((idx,i)=>`<button type="button" class="photo-choice" data-action="picture-answer" data-index="${idx}" aria-label="Вариант ${i+1}" ${g.phase==='feedback'?'disabled':''}><img src="${escapeText(photos[idx].src)}" alt="Вариант ${i+1}"/></button>`).join('')}</div>`;
+   if(g.phase==='feedback')content+=`<div class="photo-memory-result"><p class="small muted">Была показана эта фотография:</p><img src="${escapeText(photos[r.target].src)}" alt="Правильный образец"/></div>`;
+  }
  }
  if(g.type==='words'){
   if(g.phase==='show')content=`<p class="hint">Прочитайте слова в удобном темпе. Постарайтесь их запомнить. Когда будете готовы, нажмите кнопку.</p><ul class="memory-words">${g.record.words.map(w=>`<li>${w}</li>`).join('')}</ul>${btn('Я запомнил(а). Дальше','hidewords','full')}`;
@@ -342,6 +370,7 @@ function renderGame(){if(!game){setView('library');return}const g=game,e=EXERCIS
  <p class="muted small">Можно пропустить задание, сделать перерыв или попробовать ещё раз. Здесь не нужно соревноваться.</p>
  ${g.phase!=='feedback'&&g.type!=='calm'?btn('Пропустить упражнение','skip','secondary small-btn'):''}`);
  saveGameDraft();
+ if(g.type==='picturefind' && g.phase==='show' && view==='exercise')startPhotoStudyTimer(g);
 }
 function shuffleStable(arr){return [...arr].sort((a,b)=>a.localeCompare(b,'ru'))}
 function renderCalm(){if(game.phase==='ready')return `<p>Сядьте удобно. Дышите спокойно, без задержек и без усилий. Упражнение занимает около полутора минут.</p><div class="tip">Вдох — примерно 4 секунды, плавный выдох — примерно 6 секунд. Если появляются неприятные ощущения или головокружение, остановитесь.</div><div class="breath-wrap"><div class="breath-circle" aria-hidden="true">◌</div></div>${btn('Начать спокойное дыхание','start-breath','full')}`;
@@ -360,10 +389,10 @@ function clickPictureCard(index){
  renderGame();
 }
 function clickPictureChoice(index){
- const g=game;if(!g||g.type!=='picturefind'||g.phase!=='answer')return;
+ const g=game;if(!g||g.type!=='picturefind'||g.phase!=='answer')return;clearPhotoStudyTimer();
  const ok=index===g.record.target;if(ok)g.correct++;
  g.phase='feedback';g.feedback=ok?'Правильно! Вы нашли такую же картинку.':'Хорошая попытка. Посмотрите ещё раз на образец.';
- g.why=`Нужная фотография: ${PICTURE_SETS[g.record.setIndex].images[g.record.target].name}.`;renderGame();
+ g.why=`Нужная фотография: ${PICTURE_MEMORY_SETS[g.record.setIndex].images[g.record.target].name}.`;renderGame();
 }
 function checkAnswer(answer){const g=game;if(!g||g.phase!=='answer')return;let ok=false,why='';
  if(g.type==='focus'){ok=Number(answer)===g.record.count;why=`Слово «${g.record.target}» встречается ${g.record.count} раз.`}
@@ -374,7 +403,7 @@ function checkAnswer(answer){const g=game;if(!g||g.phase!=='answer')return;let o
 function checkWords(){const g=game;if(!g||g.type!=='words'||g.phase!=='answer')return;const hits=g.selected.filter(w=>g.record.words.includes(w)).length;const misses=g.selected.length-hits;const all=hits===g.record.words.length&&misses===0;g.correct+=all?1:0;g.feedback=all?'Все слова вспомнили!':'Хорошая попытка. Продолжаем.';g.why=`Верно отмечено слов: ${hits} из ${g.record.words.length}${misses?`. Лишних отметок: ${misses}`:''}. Были слова: ${g.record.words.join(', ')}.`;g.phase='feedback';renderGame()}
 function checkSequence(){const g=game;if(!g||!['sequence','planning'].includes(g.type)||g.phase!=='answer'||g.selected.length!==g.record.words.length)return;const n=g.record.words.filter((w,i)=>g.selected[i]===w).length,ok=n===g.record.words.length;g.correct+=ok?1:0;g.feedback=ok?'Вы запомнили порядок!':'Спасибо за попытку. Тренируемся дальше.';g.why=`${g.type==='planning'?g.record.why:`На своих местах: ${n} из ${g.record.words.length}.`} Правильный порядок: ${g.record.words.join(' → ')}.`;g.phase='feedback';renderGame()}
 function nextRound(){if(!game)return;if(game.round+1<MAX_ROUNDS[game.type]){game.round++;generateRound();renderGame();window.scrollTo({top:0,behavior:'instant'})}else finishGame(false)}
-function finishGame(skipped){if(!game)return;stopBreathing();lastResult={name:EXERCISES[game.type].name,correct:game.correct,total:MAX_ROUNDS[game.type],skipped};const daily=game.daily;if(!skipped){state.activityLog.push({date:dateKey(),type:game.type,daily,correct:game.correct,total:MAX_ROUNDS[game.type]});state.activityLog=state.activityLog.slice(-600)}if(daily)state.dailyDraft=null;else state.soloDraft=null;game=null;
+function finishGame(skipped){if(!game)return;stopBreathing();clearPhotoStudyTimer();lastResult={name:EXERCISES[game.type].name,correct:game.correct,total:MAX_ROUNDS[game.type],skipped};const daily=game.daily;if(!skipped){state.activityLog.push({date:dateKey(),type:game.type,daily,correct:game.correct,total:MAX_ROUNDS[game.type]});state.activityLog=state.activityLog.slice(-600)}if(daily)state.dailyDraft=null;else state.soloDraft=null;game=null;
  if(daily&&state.session){state.session.results=state.session.results||[];state.session.results.push(lastResult);state.session.position++;save();if(state.session.position>=state.session.plan.length){completeSession()}else{view='between';renderBetween()}}
  else {save();view='between';renderBetween()}
  window.scrollTo({top:0,behavior:'instant'});focusMain();}
@@ -435,6 +464,7 @@ function handleClick(e){const el=e.target.closest('[data-action]');if(!el||el.di
    game.phase='feedback';renderGame();
  }break;
  case'picture-open':clickPictureCard(Number(el.dataset.index));break;
+ case'picture-memorized':if(game&&game.type==='picturefind'&&game.phase==='show'){clearPhotoStudyTimer();game.phase='answer';renderGame()}break;
  case'picture-answer':clickPictureChoice(Number(el.dataset.index));break;
  case'answer':checkAnswer(el.dataset.value);break;
  case'next-round':nextRound();break;
@@ -453,4 +483,13 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();ins
 if('serviceWorker'in navigator && (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
 }
-render();
+// Редактор открывает нужный тип игры сразу, не затрагивая реальные профили.
+const requestedPreviewExercise=IS_PREVIEW?new URLSearchParams(location.search).get('exercise'):null;
+if(['picturepairs','picturefind'].includes(requestedPreviewExercise)){
+ if(!currentProfile()){
+  const id='preview-editor';
+  profileStore.profiles.push({id,name:'Проверка игры',data:defaultState()});
+  profileStore.activeId=id;state=profileStore.profiles[profileStore.profiles.length-1].data;save();
+ }
+ startGame(requestedPreviewExercise,false);
+}else render();

@@ -15,7 +15,7 @@
 .picture-row{display:grid;grid-template-columns:112px 1fr;gap:15px;align-items:start;border:1px solid #ded8d3;border-radius:15px;padding:12px;margin:12px 0;background:#fff}
 .picture-row img{width:112px;height:112px;border-radius:12px;object-fit:cover}.picture-edit{display:grid;gap:6px}.picture-edit input{width:100%;min-width:0}
 .image-gallery-min{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}.image-gallery-min img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:2px solid #eadfdb}
-#edit-hint{margin:12px 0 18px;padding:12px;background:#f8f0ec;border-radius:12px}#entry-select{min-width:260px}
+#edit-hint{margin:12px 0 18px;padding:12px;background:#f8f0ec;border-radius:12px}#entry-select{min-width:260px}.photo-select{width:100%;padding:12px;border:1.5px solid #c8c4bf;background:white;border-radius:12px;color:#29343b}.editor-game-explain{border:1px solid #d8d4d1;background:#f7f2ee;border-radius:14px;padding:15px;margin-bottom:20px}.editor-game-explain strong{font-size:1.1rem}.editor-game-explain p{margin-top:5px;color:#53616a}
 @media(max-width:500px){.picture-row{grid-template-columns:84px 1fr}.picture-row img{width:84px;height:84px}.image-gallery-min{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <script src="./content.js" defer></script>
@@ -23,7 +23,8 @@
 'use strict';
 const KEY='yasny-editor-draft-v1';
 const CATALOG={
-PICTURE_SETS:{name:'Фото для игр',desc:'Добавляйте свои фотографии. Они используются в играх «Найди пару» и «Найди такую же картинку».',kind:'pictures',fields:[]},
+PICTURE_PAIR_SETS:{name:'Игра 1 · Найди пару',desc:'Отдельная игра: карточки закрыты. Человек открывает по две и ищет одинаковые пары. Здесь свои фотографии и количество пар.',kind:'pictures',fields:[]},
+PICTURE_MEMORY_SETS:{name:'Игра 2 · Запомни и найди',desc:'Отдельная игра: одна фотография показывается для запоминания, исчезает, и только после этого появляются варианты ответа. Здесь можно загрузить другие фотографии и выбрать время.',kind:'pictures',fields:[]},
 WORD_POOLS:{name:'Запоминание слов',desc:'Каждая строка — одно слово. Один список используется в одном раунде.',kind:'list',fields:[['items','Слова','lines','Минимум 8 разных слов; лучше 12.']]},
 FOCUS_POOLS:{name:'Найди и сосчитай',desc:'Первое слово — искомое, остальные — похожие отвлекающие.',kind:'list',fields:[['items','Слова','lines','Нужно 4 или больше: первое — цель.']]},
 SEQ_POOLS:{name:'Вспомни порядок',desc:'Наборы для запоминания последовательности.',kind:'list',fields:[['items','Слова','lines','Минимум 5 разных слов.']]},
@@ -39,13 +40,22 @@ NEURO_STEPS:{name:'Движения рук',desc:'Пошаговые движе�
 const toText=v=>v==null?'':typeof v==='string'?v:String(v);
 const htmlEscape=x=>toText(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=v=>JSON.parse(JSON.stringify(v));
-let published, content, selectedType='PICTURE_SETS', selectedIndex=0, statusTimer;
+let published, content, selectedType='PICTURE_PAIR_SETS', selectedIndex=0, statusTimer;
+const PHOTO_KEYS=['PICTURE_PAIR_SETS','PICTURE_MEMORY_SETS'];
+function migratePhotoCollections(obj){
+ const legacy=Array.isArray(obj.PICTURE_SETS)?obj.PICTURE_SETS:[];
+ for(const key of PHOTO_KEYS){
+  if(!Array.isArray(obj[key]))obj[key]=clone(legacy).map((s,i)=>({...s,id:(key==='PICTURE_PAIR_SETS'?'pair-':'memory-')+(s.id||i)}));
+  for(const rec of obj[key]){if(key==='PICTURE_MEMORY_SETS'&&rec.studySeconds===undefined)rec.studySeconds=15;}
+ }
+ return obj;
+}
 const $=id=>document.getElementById(id);
 function inform(msg,problem=false){const el=$('notify');el.textContent=msg;el.style.background=problem?'#894b42':'#263d34';el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),2600)}
 function restoreDraft(){try{const val=JSON.parse(localStorage.getItem(KEY)||'null');return val&&typeof val==='object'&&Array.isArray(val.LOGIC)?Object.assign({},clone(window.YASNY_CONTENT),val):null}catch{return null}}
 function saveDraft(){try{localStorage.setItem(KEY,JSON.stringify(content));$('status').textContent='Черновик сохранён в этом браузере';$('status').classList.remove('warning')}catch(e){$('status').textContent='Не удалось сохранить черновик. Скачай файл.';$('status').classList.add('warning')}}
 function markSaved(){clearTimeout(statusTimer);$('status').textContent='Сохранение…';statusTimer=setTimeout(saveDraft,300)}
-function humanItem(item,idx,type){if(type==='PICTURE_SETS')return `${idx+1}. ${item.title||'Набор фотографий'} (${item.images?.length||0} фото)`;if(Array.isArray(item))return `${idx+1}. ${item.slice(0,3).join(' · ')}${item.length>3?'…':''}`;return `${idx+1}. ${item.title||item.q||item.name||item.clues?.join(' + ')||'Задание'}`.slice(0,80)}
+function humanItem(item,idx,type){if(PHOTO_KEYS.includes(type))return `${idx+1}. ${item.title||'Набор фотографий'} (${item.images?.length||0} фото)`;if(Array.isArray(item))return `${idx+1}. ${item.slice(0,3).join(' · ')}${item.length>3?'…':''}`;return `${idx+1}. ${item.title||item.q||item.name||item.clues?.join(' + ')||'Задание'}`.slice(0,80)}
 function listTypes(){const list=$('groups');list.innerHTML=Object.keys(CATALOG).map(k=>`<button class="group ${k===selectedType?'selected':''}" data-type="${k}" type="button">${htmlEscape(CATALOG[k].name)} <span class="counter">${content[k].length}</span></button>`).join('');list.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedType=b.dataset.type;selectedIndex=0;renderAll()}))}
 function getItems(){return content[selectedType]}
 function removeDuplicates(){let removed=0;for(const key of Object.keys(CATALOG)){
@@ -63,15 +73,27 @@ async function photoToData(file){
  return canvas.toDataURL('image/jpeg',0.62);
  }finally{URL.revokeObjectURL(objectUrl)}
 }
-function renderPictureFields(){const rec=getItems()[selectedIndex],host=$('fields');host.innerHTML='';if(!rec)return;
- const wrapper=document.createElement('div');wrapper.className='field';wrapper.innerHTML='<label for="picture-title">Название набора</label><input id="picture-title" placeholder="Например, предметы дома"><p class="desc">Фотографии из этого набора используются в двух играх. Для хорошего разнообразия добавьте от 6 до 12 разных изображений.</p><div class="photo-levels"><label for="photo-pairs-count">Пар в игре «Найди пару» (2–5)</label><input id="photo-pairs-count" type="number" min="2" max="5" value="3"/><label for="photo-find-count">Вариантов в игре «Найди такую же» (3–6)</label><input id="photo-find-count" type="number" min="3" max="6" value="5"/></div><label for="picture-files" class="image-upload-label">+ Загрузить свои фотографии (можно несколько сразу)</label><input id="picture-files" type="file" accept="image/*" multiple/><p class="privacy-note">Важно: после публикации изображения станут общедоступны всем посетителям сайта. Не добавляйте личные фотографии без согласия людей на них.</p><div id="picture-gallery" class="image-gallery"></div>';
- host.appendChild(wrapper);for(const [field,key,min,max,defaultValue] of [['photo-pairs-count','pairs',2,5,3],['photo-find-count','findOptions',3,6,5]]){const input=$(field);input.value=String(rec[key]||defaultValue);input.addEventListener('change',()=>{rec[key]=Math.max(min,Math.min(max,Number(input.value)||defaultValue));input.value=rec[key];markSaved();renderMini()})};const title=$('picture-title');title.value=rec.title||'';title.addEventListener('input',()=>{rec.title=title.value;markSaved();renderMini()});
+function renderPictureFields(){
+ const rec=getItems()[selectedIndex],host=$('fields');host.innerHTML='';if(!rec)return;
+ const memory=selectedType==='PICTURE_MEMORY_SETS';
+ const wrapper=document.createElement('div');wrapper.className='field';
+ wrapper.innerHTML=`<div class="editor-game-explain"><strong>${memory?'Игра 2: запомни и найди':'Игра 1: найди пару'}</strong><p>${memory?'Фото появляется отдельно, затем исчезает. После этого участник выбирает правильное фото среди других.':'Все карточки сначала закрыты. Участник переворачивает их попарно, запоминая расположение.'}</p></div>
+ <label for="picture-title">Название набора для этой игры</label><input id="picture-title" placeholder="Например, предметы дома"/>
+ <p class="desc">${memory?'Эта галерея относится только к игре «Запомни и найди».':'Эта галерея относится только к игре «Найди пару». У второй игры отдельные фотографии и настройки.'}</p>
+ ${memory?`<div class="photo-levels"><label for="photo-find-count">Сколько картинок показывать при поиске (3–6)</label><input id="photo-find-count" type="number" min="3" max="6"/></div><div class="field"><label for="photo-study-seconds">Время на запоминание</label><select id="photo-study-seconds" class="photo-select"><option value="0">Без таймера, по кнопке</option><option value="10">10 секунд</option><option value="15">15 секунд</option><option value="20">20 секунд</option><option value="30">30 секунд</option></select><small>По истечении времени фотография исчезнет автоматически. Участник также может нажать «Я запомнил(а)» раньше.</small></div>`:`<div class="photo-levels"><label for="photo-pairs-count">Сколько пар карточек (2–5)</label><input id="photo-pairs-count" type="number" min="2" max="5"/></div>`}
+ <label for="picture-files" class="image-upload-label">+ Загрузить фотографии для этой игры</label><input id="picture-files" type="file" accept="image/*" multiple/><p class="privacy-note">После публикации фотографии доступны всем посетителям публичного сайта. Не загружайте личные фото без согласия.</p><div id="picture-gallery" class="image-gallery"></div>`;
+ host.appendChild(wrapper);
+ const controls=memory?[['photo-find-count','findOptions',3,6,5]]:[['photo-pairs-count','pairs',2,5,3]];
+ for(const [field,key,min,max,defaultValue] of controls){const input=$(field);input.value=String(rec[key]??defaultValue);input.addEventListener('change',()=>{rec[key]=Math.max(min,Math.min(max,Number(input.value)||defaultValue));input.value=rec[key];markSaved();renderMini()})}
+ if(memory){const seconds=$('photo-study-seconds');seconds.value=String([0,10,15,20,30].includes(Number(rec.studySeconds))?Number(rec.studySeconds):15);seconds.addEventListener('change',()=>{rec.studySeconds=Number(seconds.value);markSaved();renderMini()})}
+ const title=$('picture-title');title.value=rec.title||'';title.addEventListener('input',()=>{rec.title=title.value;markSaved();renderMini()});
  $('picture-files').addEventListener('change',async event=>{
   const files=Array.from(event.target.files||[]);if(!files.length)return;
   inform('Обрабатываю фотографии…');for(const file of files){try{const src=await photoToData(file);rec.images.push({id:'image-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:file.name.replace(/\.[^.]+$/,'').slice(0,40)||'Фото',src});}catch(err){inform(`Не удалось прочитать ${file.name}`,true)}}
   markSaved();renderPictureGallery();renderMini();event.target.value='';
  });renderPictureGallery();
 }
+
 function renderPictureGallery(){const rec=getItems()[selectedIndex];const host=$('picture-gallery');if(!host)return;
  host.innerHTML=(rec.images||[]).map((im,i)=>`<div class="picture-row"><img src="${htmlEscape(im.src)}" alt="${htmlEscape(im.name)}"/><div class="picture-edit"><label for="image-name-${i}">Название фото ${i+1}</label><input id="image-name-${i}" data-rename="${i}" value="${htmlEscape(im.name)}" aria-label="Название фотографии ${i+1}"/><button type="button" class="button warn" data-remove="${i}">Удалить фотографию</button></div></div>`).join('')||'<p class="desc">Пока нет фотографий. Нажмите «Загрузить свои фотографии».</p>';
  host.querySelectorAll('[data-rename]').forEach(input=>input.addEventListener('input',()=>{rec.images[Number(input.dataset.rename)].name=input.value;markSaved();renderMini()}));
@@ -79,7 +101,7 @@ function renderPictureGallery(){const rec=getItems()[selectedIndex];const host=$
 }
 
 function renderFields(){const schema=CATALOG[selectedType],row=getItems()[selectedIndex];$('fields').innerHTML='';if(!row)return;if(schema.kind==='pictures'){renderPictureFields();return;}for(const [name,label,kind,hint] of schema.fields){let v=schema.kind==='list'?row:row[name];const container=document.createElement('div');container.className='field';let l=document.createElement('label');l.textContent=label;let ctl=document.createElement(kind==='textarea'||kind==='lines'||kind==='paragraphs'?'textarea':'input');ctl.id='field-'+name;l.htmlFor=ctl.id;container.appendChild(l);if(ctl.tagName==='TEXTAREA'){ctl.className=kind==='paragraphs'?'paras':kind==='lines'?'rows':'';ctl.rows=kind==='paragraphs'?9:kind==='lines'?5:3}else{ctl.type=kind==='number'?'number':'text';if(kind==='number')ctl.min='1'}ctl.value=fieldText(v,kind);ctl.addEventListener('input',()=>{let newVal=ctl.value;if(kind==='lines')newVal=newVal.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(kind==='paragraphs')newVal=newVal.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);if(kind==='number')newVal=Math.max(1,Number(newVal)||1);if(schema.kind==='list')getItems()[selectedIndex]=newVal;else getItems()[selectedIndex][name]=newVal;markSaved();renderMini();});container.appendChild(ctl);if(hint){let el=document.createElement('small');el.textContent=hint;container.appendChild(el)}$('fields').appendChild(container)}}
-function renderMini(){const typ=selectedType,rec=getItems()[selectedIndex],host=$('mini');if(!rec){host.innerHTML='<p>Добавьте первое задание.</p>';return}let h=`<span class="tag">${htmlEscape(CATALOG[typ].name)}</span>`;if(typ==='PICTURE_SETS'){h+=`<h3>${htmlEscape(rec.title)}</h3><div class="image-gallery-min">${(rec.images||[]).map(im=>`<img src="${htmlEscape(im.src)}" alt="${htmlEscape(im.name)}" title="${htmlEscape(im.name)}"/>`).join('')}</div><p class="hint">${rec.images?.length||0} фотографий в наборе.</p>`}
+function renderMini(){const typ=selectedType,rec=getItems()[selectedIndex],host=$('mini');if(!rec){host.innerHTML='<p>Добавьте первое задание.</p>';return}let h=`<span class="tag">${htmlEscape(CATALOG[typ].name)}</span>`;if(PHOTO_KEYS.includes(typ)){h+=`<h3>${htmlEscape(rec.title)}</h3><div class="image-gallery-min">${(rec.images||[]).map(im=>`<img src="${htmlEscape(im.src)}" alt="${htmlEscape(im.name)}" title="${htmlEscape(im.name)}"/>`).join('')}</div><p class="hint">${rec.images?.length||0} фотографий в наборе. ${typ==='PICTURE_MEMORY_SETS'?'Образец исчезнет через '+(Number(rec.studySeconds)||0)+' сек. (0 = по кнопке).':'Сначала все карточки закрыты.'}</p>`}
 else if(Array.isArray(rec)){h+=`<h3>${typ==='FOCUS_POOLS'?'Найдите первый элемент':'Запомните слова'}</h3><div>${rec.map((x,i)=>`<div class="choice">${typ==='FOCUS_POOLS'&&i===0?'Цель: ':''}${htmlEscape(x)}</div>`).join('')}</div>`}
 else if(rec.choices){h+=`<h3>${htmlEscape(rec.q||rec.clues?.join(' · ')||'Какой вариант подходит?')}</h3>${rec.choices.map(c=>`<div class="choice ${c===rec.answer?'correct':''}">${htmlEscape(c)}</div>`).join('')}<p class="hint">Правильный ответ выделен только в редакторе.</p>`}
 else if(rec.steps){h+=`<h3>${htmlEscape(rec.q)}</h3>${rec.steps.map((step,i)=>`<div class="choice">${i+1}. ${htmlEscape(step)}</div>`).join('')}`}
@@ -87,7 +109,7 @@ else if(rec.paras){h+=`<h3>${htmlEscape(rec.title)}</h3>${rec.paras.slice(0,2).m
 else{h+=`<h3>${htmlEscape(rec.title||rec.name||'Новое упражнение')}</h3><p>${htmlEscape(rec.hint||rec.desc||rec.instruction||'Заполните поля слева.')}</p>`}host.innerHTML=h}
 function renderAll(){const cfg=CATALOG[selectedType];$('section-title').textContent=cfg.name;$('section-desc').textContent=cfg.desc;listTypes();renderEntryList();renderFields();renderMini()}
 function newRow(type){
- if(type==='PICTURE_SETS')return {id:'photos-'+Date.now().toString(36),title:'Новый набор фотографий',pairs:3,findOptions:5,images:[]};
+ if(PHOTO_KEYS.includes(type))return {id:(type==='PICTURE_PAIR_SETS'?'pairs-':'memory-')+Date.now().toString(36)+Math.random().toString(36).slice(2,6),title:'Новый набор фотографий',pairs:3,findOptions:5,studySeconds:15,images:[]};
  if(CATALOG[type].kind==='list')return [];
  const o={};for(const [name,,kind] of CATALOG[type].fields)o[name]=kind==='lines'||kind==='paragraphs'?[]:kind==='number'?2:'';
  if('id'in o)o.id='new-'+Math.random().toString(36).slice(2,9);
@@ -101,7 +123,14 @@ function readErrors(){
   if(!Array.isArray(a)||!a.length){problems.push(`${CATALOG[type].name}: нет заданий`);continue;}
   for(let i=0;i<a.length;i++){
    const o=a[i],ref=`${CATALOG[type].name} №${i+1}`;
-   if(type==='PICTURE_SETS'){if(!o.images||o.images.length<4)problems.push(`${ref}: загрузите минимум 4 разные фотографии`);if(o.images&&new Set(o.images.map(x=>x.src)).size!==o.images.length)problems.push(`${ref}: одинаковые изображения в одном наборе`);continue;}
+   if(PHOTO_KEYS.includes(type)){
+    const n=o.images?.filter(x=>x.src).length||0;
+    const min=type==='PICTURE_PAIR_SETS'?Math.max(2,Number(o.pairs)||3):Math.max(3,Number(o.findOptions)||5);
+    if(n<min)problems.push(`${ref}: нужно минимум ${min} разных фотографий; загружено ${n}`);
+    if(o.images&&new Set(o.images.map(x=>x.src)).size!==o.images.length)problems.push(`${ref}: одинаковые изображения в одном наборе`);
+    if(type==='PICTURE_MEMORY_SETS'&&![0,10,15,20,30].includes(Number(o.studySeconds)))problems.push(`${ref}: выберите время запоминания`);
+    continue;
+   }
    if(Array.isArray(o)){
     const min=type==='FOCUS_POOLS'?4:type==='WORD_POOLS'?8:5;
     if(o.length<min)problems.push(`${ref}: минимум ${min} слов`);
@@ -123,7 +152,7 @@ function readErrors(){
    if(type==='ARTICLES'&&!['dual','who','rus','rusmanual','active','review','nhs','breath','nia','pointer','nice','wcag','nih'].includes(o.source))problems.push(`${ref}: неизвестный код источника`);
   }
   if(type==='WORD_POOLS'||type==='FOCUS_POOLS'||type==='SEQ_POOLS'){if(new Set(a.map(x=>JSON.stringify(x))).size!==a.length)problems.push(`${CATALOG[type].name}: есть полностью одинаковые списки. Нажмите «Убрать дубли».`)}
-  if(['ARTICLES','NEURO_VIDEOS','PICTURE_SETS'].includes(type)){
+  if(['ARTICLES','NEURO_VIDEOS',...PHOTO_KEYS].includes(type)){
    const ids=a.map(v=>v.id);
    if(new Set(ids).size!==ids.length)problems.push(`${CATALOG[type].name}: повторяются ID`);
   }
@@ -131,11 +160,11 @@ function readErrors(){
  return problems;
 }
 function checkContent(){const errs=readErrors();$('errors').hidden=!errs.length;$('errors').innerHTML=errs.length?`<b>Нужно поправить перед публикацией (${errs.length}):</b><ol>${errs.slice(0,18).map(e=>`<li>${htmlEscape(e)}</li>`).join('')}${errs.length>18?`<li>И ещё ${errs.length-18}…</li>`:''}</ol>`:'<b>Всё заполнено корректно.</b>';return errs.length===0}
-function exportedContent(){return `/* Материалы приложения «Ясный день 50+». Создано редактором studio.html. */\n(function(){\n  const published = ${JSON.stringify(content,null,2)};\n  let current = published;\n  if (new URLSearchParams(location.search).get('preview') === '1') {\n    try {\n      const draft = JSON.parse(localStorage.getItem('yasny-editor-draft-v1') || 'null');\n      if (draft && typeof draft === 'object' && Array.isArray(draft.LOGIC) && Array.isArray(draft.NEURO_VIDEOS)) current = Object.assign({}, published, draft);\n    } catch (e) { console.warn('Не удалось загрузить черновик', e); }\n  }\n  window.YASNY_CONTENT = current;\n})();\n`}
+function exportedContent(){return `/* Материалы приложения «Ясный день 50+». Создано редактором studio.html. */\n(function(){\n  const published = ${JSON.stringify((()=>{const data=clone(content);delete data.PICTURE_SETS;return data})(),null,2)};\n  let current = published;\n  if (new URLSearchParams(location.search).get('preview') === '1') {\n    try {\n      const draft = JSON.parse(localStorage.getItem('yasny-editor-draft-v1') || 'null');\n      if (draft && typeof draft === 'object' && Array.isArray(draft.LOGIC) && Array.isArray(draft.NEURO_VIDEOS)) current = Object.assign({}, published, draft);\n    } catch (e) { console.warn('Не удалось загрузить черновик', e); }\n  }\n  window.YASNY_CONTENT = current;\n})();\n`}
 function download(filename,str,mime){const blob=new Blob([str],{type:mime});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
 document.addEventListener('DOMContentLoaded',()=>{
   if(!window.YASNY_CONTENT){document.body.innerHTML='<h1 style="padding:35px">Не загружен content.js. Положите studio.html рядом с content.js.</h1>';return}
-  published=clone(window.YASNY_CONTENT);content=restoreDraft()||clone(published);renderAll();$('status').textContent=restoreDraft()?'Найден сохранённый черновик':'Пока без изменений';
+  published=migratePhotoCollections(clone(window.YASNY_CONTENT));content=migratePhotoCollections(restoreDraft()||clone(published));renderAll();$('status').textContent=restoreDraft()?'Найден сохранённый черновик':'Пока без изменений';
   $('entry-select').addEventListener('change',e=>{selectedIndex=Number(e.target.value);renderFields();renderMini()});
   $('dedupe').onclick=removeDuplicates;
   $('add').onclick=()=>{getItems().push(newRow(selectedType));selectedIndex=getItems().length-1;markSaved();renderAll();inform('Задание добавлено — отредактируйте поля')};
@@ -143,18 +172,18 @@ document.addEventListener('DOMContentLoaded',()=>{
   $('delete').onclick=()=>{if(getItems().length<=1)return inform('В этой категории нужно оставить хотя бы одно задание',true);if(!confirm('Удалить это задание из черновика?'))return;getItems().splice(selectedIndex,1);selectedIndex=Math.max(0,selectedIndex-1);markSaved();renderAll()};
   $('save').onclick=()=>{clearTimeout(statusTimer);saveDraft();inform('Черновик сохранён на этом устройстве')};
   $('check').onclick=()=>{if(checkContent())inform('Проверка пройдена. Можно открыть предпросмотр.')};
-  $('preview').onclick=()=>{saveDraft();window.open('./index.html?preview=1','_blank','noopener')};
+  $('preview').onclick=()=>{saveDraft();const exercise=selectedType==='PICTURE_PAIR_SETS'?'picturepairs':selectedType==='PICTURE_MEMORY_SETS'?'picturefind':null;window.open('./index.html?preview=1'+(exercise?'&exercise='+exercise:''),'_blank','noopener')};
   $('download').onclick=()=>{saveDraft();if(!checkContent())return inform('Исправьте замечания в блоке проверки',true);download('content.js',exportedContent(),'text/javascript;charset=utf-8');inform('Файл content.js скачан. Загрузите его на GitHub.')};
-  $('reset').onclick=()=>{if(!confirm('Удалить локальный черновик и вернуть материалы из опубликованного content.js?'))return;content=clone(published);localStorage.removeItem(KEY);selectedIndex=0;renderAll();$('status').textContent='Черновик сброшен'};
+  $('reset').onclick=()=>{if(!confirm('Удалить локальный черновик и вернуть материалы из опубликованного content.js?'))return;content=migratePhotoCollections(clone(published));localStorage.removeItem(KEY);selectedIndex=0;renderAll();$('status').textContent='Черновик сброшен'};
 });
 </script>
 </head>
 <body>
-<header><div class="top"><div class="logo"><div class="mark" aria-hidden="true">✳</div><div><h1>Редактор игр</h1><p class="sub">Ясный день 50+ · упражнения и свои фотографии</p></div></div><div class="actions"><button class="button" id="save" type="button">Сохранить черновик</button><button class="button" id="check" type="button">Проверить</button><button class="button primary" id="download" type="button">Скачать обновление</button></div><div class="status" id="status" aria-live="polite">Загрузка…</div></div></header>
+<header><div class="top"><div class="logo"><div class="mark" aria-hidden="true">✳</div><div><h1>Редактор игр</h1><p class="sub">Ясный день 50+ · две отдельные фото-игры</p></div></div><div class="actions"><button class="button" id="save" type="button">Сохранить черновик</button><button class="button" id="check" type="button">Проверить</button><button class="button primary" id="download" type="button">Скачать обновление</button></div><div class="status" id="status" aria-live="polite">Загрузка…</div></div></header>
 <main>
 <aside class="panel sidebar"><h2>Разделы</h2><div class="groups" id="groups"></div><div class="callout"><b>Как устроено сохранение</b>Изменения в редакторе видны только тебе, пока не загрузишь обновлённый файл на GitHub.</div></aside>
 <section class="panel"><div class="topline"><div><h2 id="section-title"></h2><p class="desc" id="section-desc"></p></div></div><div class="entry-tools"><select aria-label="Выберите задание" id="entry-select"></select><button class="button" id="add" type="button">+ Новое с нуля</button><button class="button" id="duplicate" type="button">Копировать</button><button class="button warn" id="delete" type="button">Удалить</button><button class="button" id="dedupe" type="button">Убрать дубли</button></div><p class="desc" id="edit-hint">Выберите задание, затем меняйте поля ниже. Кнопка «Новое с нуля» создаёт чистую форму, а «Копировать» — точную копию.</p><div id="empty" class="entryempty" hidden>Здесь пока нет заданий. Нажмите «Добавить».</div><div id="fields"></div><div id="errors" class="callout" hidden aria-live="polite"></div></section>
-<aside class="panel preview-panel"><h2>Как выглядит задание</h2><p class="hint">Ниже — быстрый просмотр текста. Проверить настоящий игровой экран можно отдельной кнопкой.</p><div class="mini" id="mini"></div><div class="stages"><button class="button soft" id="preview" type="button">▶ Тестировать в приложении</button><a class="button" href="./index.html" target="_blank" rel="noopener">Открыть обычное приложение</a></div><div class="callout"><b>Публикация обновления</b>1. Нажми «Скачать обновление». Фото будут включены в content.js; файл доступен всем.<br/>2. На GitHub замени файл <code>content.js</code> скачанным.<br/>3. Нажми <strong>Commit changes</strong>. Участники увидят новую версию.</div><p class="footer-note">Предпросмотр создаёт отдельные тестовые профили и не меняет прогресс настоящих участников. Страница редактора публично доступна по ссылке, но не даёт никому прав изменять файлы GitHub.</p><button class="button warn" id="reset" type="button" style="width:100%;margin-top:14px">Сбросить черновик</button></aside>
+<aside class="panel preview-panel"><h2>Как выглядит задание</h2><p class="hint">Ниже быстрый просмотр. Нажмите «Тестировать», чтобы сразу открыть именно выбранную фото-игру с её настройками.</p><div class="mini" id="mini"></div><div class="stages"><button class="button soft" id="preview" type="button">▶ Тестировать в приложении</button><a class="button" href="./index.html" target="_blank" rel="noopener">Открыть обычное приложение</a></div><div class="callout"><b>Публикация обновления</b>1. Нажми «Скачать обновление». Каждая из двух фото-игр хранит свои наборы. Файл content.js будет публичным.<br/>2. На GitHub замени файл <code>content.js</code> скачанным.<br/>3. Нажми <strong>Commit changes</strong>. Участники увидят новую версию.</div><p class="footer-note">Предпросмотр создаёт отдельные тестовые профили и не меняет прогресс настоящих участников. Страница редактора публично доступна по ссылке, но не даёт никому прав изменять файлы GitHub.</p><button class="button warn" id="reset" type="button" style="width:100%;margin-top:14px">Сбросить черновик</button></aside>
 </main><div id="notify" class="notify" role="status" aria-live="polite"></div>
 </body>
 </html>

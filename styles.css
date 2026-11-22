@@ -152,3 +152,6 @@ h1,h2,h3,.game-title{color:var(--ink)}
 .photo-target img{height:180px;object-fit:cover}.photo-target span{font-size:.88rem;font-weight:800;color:#765459;letter-spacing:.08em}
 .photo-choice{background:white}.photo-choice:hover{border-color:#765459}
 @media(max-width:420px){.photo-pairs-grid,.photo-find-grid{gap:8px}.photo-tile,.photo-choice{min-height:85px;border-radius:13px}.photo-target img{height:150px}}
+
+/* Фото: отдельный этап запоминания, затем выбор без видимого образца */
+.photo-memory-timer{margin:14px 0;font-size:1.08rem;color:#4e535d;text-align:center}.photo-memory-timer strong{font-variant-numeric:tabular-nums;font-size:1.35rem;color:#6e4651}.photo-memory-result{margin-top:18px;padding:15px;border-radius:15px;border:1px solid #e4dad8;background:#f8f2ed;text-align:center}.photo-memory-result img{max-width:210px;width:100%;aspect-ratio:1;object-fit:cover;border-radius:13px}
